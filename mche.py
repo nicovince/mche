@@ -51,9 +51,6 @@ class RegionFile:
             #TODO
             # Read chunk datas (number of data deduced from location fields
 
-            self.display_chunk_info(0,0)
-            self.display_chunk_info(31,31)
-
     def display_chunk_info(self, x, z):
         """
         Display chunks info of chunk coordinates (x,z)
@@ -105,3 +102,15 @@ class RegionFile:
 if __name__ == "__main__":
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
+    rf.display_chunk_info(0,0)
+    rf.display_chunk_info(31,31)
+
+    rf = RegionFile("/home/pi/mc/juco/region/r.0.0.mca")
+    rf.read()
+    rf.display_chunk_info(0,0)
+    rf.display_chunk_info(31,31)
+
+    rf = RegionFile("/home/pi/mc/juco/region/r.-1.-1.mca")
+    rf.read()
+    rf.display_chunk_info(0,0)
+    rf.display_chunk_info(31,31)
