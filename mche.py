@@ -63,6 +63,14 @@ class RegionFile:
             file_size = os.path.getsize(self.region_filename)
             assert total_size == file_size, "Size read in file (%d) does not match file size (%d)" % (total_size, file_size)
 
+    def write(self, filename):
+        """
+        Write region file to given filename
+
+        Filename can be the same as self.region_filename if you are sure of
+        your changes or have made a backup earlier
+        """
+        #TODO placeholder
 
     def display_chunk_info(self, x, z):
         """
