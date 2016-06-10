@@ -48,8 +48,21 @@ class RegionFile:
                     offset = 4*(x + 32*z)
                     cur_ts = self.timestamps_field[offset:offset+4]
                     self.chunks[offset/4]["timestamp"] = int(hexlify(cur_ts), 16)
-            #TODO
+
             # Read chunk datas (number of data deduced from location fields
+            total_size=8192
+            for z in range(32):
+                for x in range(32):
+                    # chunk index in chunks list
+                    chunk_idx = x + 32*z
+                    chunk_size = 4096 * self.chunks[chunk_idx]["sector_count"]
+                    if chunk_size > 0:
+                        total_size += chunk_size
+                        self.chunks[chunk_idx]["chunk_data"] = f.read(chunk_size)
+
+            file_size = os.path.getsize(self.region_filename)
+            assert total_size == file_size, "Size read in file (%d) does not match file size (%d)" % (total_size, file_size)
+
 
     def display_chunk_info(self, x, z):
         """
@@ -59,7 +72,7 @@ class RegionFile:
         """
         # Index of chunk in chunks list
         chunk_idx = (x%32) + 32*(z%32)
-        print self.chunks[chunk_idx]
+        #print self.chunks[chunk_idx]
         print self.chunks[chunk_idx]["offset"]
         print self.chunks[chunk_idx]["sector_count"]
         print self.chunks[chunk_idx]["x"]
@@ -96,21 +109,21 @@ class RegionFile:
         z2 = z_region_offset + z_chunk_offset + 15
         return ((x1, z1), (x2,z2))
 
-
-
-
 if __name__ == "__main__":
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
     rf.display_chunk_info(0,0)
     rf.display_chunk_info(31,31)
 
-    rf = RegionFile("/home/pi/mc/juco/region/r.0.0.mca")
-    rf.read()
-    rf.display_chunk_info(0,0)
-    rf.display_chunk_info(31,31)
+    #for c in sorted(rf.chunks, key=lambda x: x["offset"]):
+    #    print c
 
-    rf = RegionFile("/home/pi/mc/juco/region/r.-1.-1.mca")
-    rf.read()
-    rf.display_chunk_info(0,0)
-    rf.display_chunk_info(31,31)
+    #rf = RegionFile("/home/pi/mc/juco/region/r.0.0.mca")
+    #rf.read()
+    #rf.display_chunk_info(0,0)
+    #rf.display_chunk_info(31,31)
+
+    #rf = RegionFile("/home/pi/mc/juco/region/r.-1.-1.mca")
+    #rf.read()
+    #rf.display_chunk_info(0,0)
+    #rf.display_chunk_info(31,31)
