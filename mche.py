@@ -10,13 +10,13 @@ def get_byte_seq(data, n):
     """
     Return data as a byte string of length n
     """
+    assert data < 2**(8*n),\
+        "%d bytes is too small to contain %s" % (n, hex(data))
+    # Create format for hexadecimal data
     fmt = "%%0%dx" % (2*n)
     ret = unhexlify(fmt % data)
-    assert len(ret) <= n, "%d bytes is too small to contain %s" % (n, hex(data))
-    # perform left padding with null bytes
-    #ret = '\x00' * (n - len(ret)) + ret
-
     return ret
+
 
 class RegionFile:
     """
