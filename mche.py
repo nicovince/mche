@@ -3,7 +3,20 @@ import os
 import sys
 import re
 from binascii import hexlify
+from binascii import unhexlify
 
+
+def get_byte_seq(data, n):
+    """
+    Return data as a byte string of length n
+    """
+    fmt = "%%0%dx" % (2*n)
+    ret = unhexlify(fmt % data)
+    assert len(ret) <= n, "%d bytes is too small to contain %s" % (n, hex(data))
+    # perform left padding with null bytes
+    #ret = '\x00' * (n - len(ret)) + ret
+
+    return ret
 
 class RegionFile:
     """
@@ -74,7 +87,19 @@ class RegionFile:
         Filename can be the same as self.region_filename if you are sure of
         your changes or have made a backup earlier
         """
-        # TODO placeholder
+        with open(filename, "wb") as f:
+            # Write locations fields
+            for z in range(32):
+                for x in range(32):
+                    # relative chunk index in region
+                    chunk_idx = x + 32*z
+                    chunk = self.chunks[chunk_idx]
+                    offset_field = get_byte_seq(chunk["offset"], 3)
+                    sector_count_field = get_byte_seq(chunk["sector_count"], 1)
+                    location_field = offset_field + sector_count_field
+                    f.write(location_field)
+            # TODO timestamps
+            # TODO data chunks
 
     def display_chunk_info(self, x, z):
         """
@@ -126,6 +151,7 @@ if __name__ == "__main__":
     rf.read()
     rf.display_chunk_info(0, 0)
     rf.display_chunk_info(31, 31)
+    rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche")
 
     # for c in sorted(rf.chunks, key=lambda x: x["offset"]):
     #     print c
