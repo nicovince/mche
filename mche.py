@@ -75,7 +75,6 @@ class RegionFile:
                 size = 4096 * c["sector_count"]
                 if size > 0:
                     total_size += size
-                    #self.chunks[chunk_idx]["chunk_data"] = f.read(size)
                     c["chunk_data"] = f.read(size)
 
             # Check filesize is equal to size read
@@ -119,7 +118,6 @@ class RegionFile:
                     self.display_chunk_info(x, z)
                     f.write(c["chunk_data"])
 
-
     def display_chunk_info(self, x, z):
         """
         Display chunks info of chunk coordinates (x,z)
@@ -132,7 +130,7 @@ class RegionFile:
         print "sector count : %d" % self.chunks[chunk_idx]["sector_count"]
         print "x : %d" % self.chunks[chunk_idx]["x"]
         print "z : %d" % self.chunks[chunk_idx]["z"]
-        print "timestamp : %d" %self.chunks[chunk_idx]["timestamp"]
+        print "timestamp : %d" % self.chunks[chunk_idx]["timestamp"]
         print "Chunk coords : " + str(self.get_chunk_coords_blk(x, z))
 
     def get_region_coords(self):
