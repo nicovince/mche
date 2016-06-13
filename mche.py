@@ -109,13 +109,12 @@ class RegionFile:
                     timestamp_field = get_byte_seq(chunk["timestamp"], 4)
                     f.write(timestamp_field)
 
-            # TODO data chunks
+            # write chunk's datas
             for c in sorted(self.chunks, key=lambda x: x["offset"]):
                 # skip chunks with offset 0
                 x = c["x"]
                 z = c["z"]
                 if c["offset"] != 0:
-                    self.display_chunk_info(x, z)
                     f.write(c["chunk_data"])
 
     def display_chunk_info(self, x, z):
@@ -163,12 +162,30 @@ class RegionFile:
         z2 = z_region_offset + z_chunk_offset + 15
         return ((x1, z1), (x2, z2))
 
+    def delete_chunk(self, x, z):
+        """
+        Delete chunk at relative coords x, z
+
+        Done by setting location and timestamp fields to zero.
+        Locations of chunks stored after deleted chunk are updated
+        """
+        chunk_idx = x + 32*z
+        deleted_chunk = self.chunks[chunk_idx]
+        # List of chunks that needs to be updated
+        update_chunks = [c for c in self.chunks
+                         if c["offset"] > deleted_chunk["offset"]]
+        # recompute offset of chunks stored after delted chunk
+        for c in update_chunks:
+            c["offset"] = c["offset"] - deleted_chunk["sector_count"]
+        # reset offset, sector count and timestamp of deleted chunk
+        deleted_chunk["offset"] = 0
+        deleted_chunk["sector_count"] = 0
+        deleted_chunk["timestamp"] = 0
+
+
 if __name__ == "__main__":
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
-    rf.display_chunk_info(0, 0)
-    rf.display_chunk_info(31, 31)
+    rf.display_chunk_info(3, 11)
+    rf.delete_chunk(3, 11)
     rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche")
-
-    # for c in sorted(rf.chunks, key=lambda x: x["offset"]):
-    #     print c
