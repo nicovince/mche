@@ -182,11 +182,17 @@ class RegionFile:
         deleted_chunk["sector_count"] = 0
         deleted_chunk["timestamp"] = 0
 
-    def get_chunk_coords(self, x_blk, z, blk):
+    def get_relative_chunk_coords(self, chunk_x, chunk_z):
+        """
+        Get relative coords for chunks coordinates
+        """
+        return (chunk_x % 32, chunk_z % 32)
+
+    def get_chunk_coords(self, block_x, block_z):
         """
         Get relative chunk coords from absolute blocks coordinates
         """
-        # TODO
+        return self.get_relative_chunk_coords(block_x >> 4, block_z >> 4)
 
 
 if __name__ == "__main__":
