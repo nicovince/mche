@@ -26,6 +26,8 @@ class RegionFile:
     """
     def __init__(self, filename):
         self.region_filename = filename
+        if not os.path.exists(filename):
+            raise IOError
         self.x, self.z = self.get_region_coords()
 
     def read(self):
@@ -169,6 +171,7 @@ class RegionFile:
         Done by setting location and timestamp fields to zero.
         Locations of chunks stored after deleted chunk are updated
         """
+        print "delete relative chunk (%d, %d)" % (x, z)
         chunk_idx = x + 32*z
         deleted_chunk = self.chunks[chunk_idx]
         # List of chunks that needs to be updated
@@ -195,14 +198,99 @@ class RegionFile:
         return self.get_relative_chunk_coords(block_x >> 4, block_z >> 4)
 
 
-if __name__ == "__main__":
+class World:
+    """
+    Class to handler World
+
+    delete zones from dimensions, single chunks, ...
+    """
+    dimensions = ["overworld", "nether", "theend"]
+
+    def __init__(self, world_pathname):
+        """
+        Initialize class with path to world which will be edited
+        """
+        self.world = world_pathname
+        if not os.path.exists(self.world):
+            raise IOError
+
+    def get_overwold_dir(self):
+        """
+        Return directory containing overworld region files
+        """
+        ow_dir = os.path.join(self.world, "region")
+        if not os.path.exists(self.world):
+            raise IOError
+        return ow_dir
+
+    def get_nether_dir(self):
+        """
+        Return directory containing nether region files
+        """
+        ow_dir = os.path.join(os.path.join(self.world, "DIM-1"), "region")
+        if not os.path.exists(self.world):
+            raise IOError
+        return ow_dir
+
+    def get_theend_dir(self):
+        """
+        Return directory containing theend region files
+        """
+        ow_dir = os.path.join(os.path.join(self.world, "DIM1"), "region")
+        if not os.path.exists(self.world):
+            raise IOError
+        return ow_dir
+
+    def get_dim_dir(self, dim):
+        """
+        Return directory containing specified dimension files
+        """
+        assert dim in self.dimensions, "Dimension %s is not valid" % dim
+        if dim == "overworld":
+            return self.get_overwold_dir()
+        elif dim == "nether":
+            return self.get_nether_dir()
+        elif dim == "theend":
+            return self.get_theend_dir()
+
+    def get_region_file(self, dim, block_x, block_z):
+        """
+        Return region filename for block coordinates of given dimension
+        """
+        region_x = (block_x >> 4) >> 5
+        region_z = (block_z >> 4) >> 5
+        filename = "r.%d.%d.mca" % (region_x, region_z)
+
+        region_file = os.path.join(self.get_dim_dir(dim), filename)
+        return region_file
+
+    def delete_chunk_block_coords(self, dim, x, z):
+        """
+        Delete chunk at block coordinates for given dimension
+        """
+        assert dim in self.dimensions, "Dimension %s is not valid" % dim
+        region_filename = self.get_region_file(dim, x, z)
+        print "delete chunk containing block (%d, %d)" % (x, z)
+        print "Edit region : %s" % region_filename
+        rf = RegionFile(region_filename)
+        rf.read()
+        rf.delete_chunk(*rf.get_chunk_coords(x, z))
+        rf.write(region_filename + ".mche")
+
+
+def test_region_file():
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
     rf.display_chunk_info(3, 11)
-    # rf.delete_chunk(3, 11)
-    first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x["offset"])
-                   if c["offset"] > 0][0]
-    rf.display_chunk_info(first_chunk["x"], first_chunk["z"])
-    rf.delete_chunk(first_chunk["x"], first_chunk["z"])
+    rf.delete_chunk(3, 11)
+    # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x["offset"])
+    #                if c["offset"] > 0][0]
+    # rf.display_chunk_info(first_chunk["x"], first_chunk["z"])
+    # rf.delete_chunk(first_chunk["x"], first_chunk["z"])
 
-    rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche")
+    rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche.RF")
+
+if __name__ == "__main__":
+    world = World("/home/pi/mc/juco")
+    world.delete_chunk_block_coords("overworld", 1584, 1712)
+    test_region_file()
