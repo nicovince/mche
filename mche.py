@@ -25,6 +25,9 @@ class RegionFile:
     Load them, prune a chunk, save to file
     """
     def __init__(self, filename):
+        """
+        Initialize instance with region filename attribute
+        """
         self.region_filename = filename
         if not os.path.exists(filename):
             raise IOError
@@ -187,20 +190,20 @@ class RegionFile:
 
     def get_relative_chunk_coords(self, chunk_x, chunk_z):
         """
-        Get relative coords for chunks coordinates
+        Get relative coords for chunk's absolutescoordinates
         """
         return (chunk_x % 32, chunk_z % 32)
 
     def get_chunk_coords(self, block_x, block_z):
         """
-        Get relative chunk coords from absolute blocks coordinates
+        Get relative chunk coords from block's coordinates
         """
         return self.get_relative_chunk_coords(block_x >> 4, block_z >> 4)
 
 
 class World:
     """
-    Class to handler World
+    Class to handle World
 
     delete zones from dimensions, single chunks, ...
     """
