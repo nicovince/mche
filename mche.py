@@ -182,10 +182,21 @@ class RegionFile:
         deleted_chunk["sector_count"] = 0
         deleted_chunk["timestamp"] = 0
 
+    def get_chunk_coords(self, x_blk, z, blk):
+        """
+        Get relative chunk coords from absolute blocks coordinates
+        """
+        # TODO
+
 
 if __name__ == "__main__":
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
     rf.display_chunk_info(3, 11)
-    rf.delete_chunk(3, 11)
+    # rf.delete_chunk(3, 11)
+    first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x["offset"])
+                   if c["offset"] > 0][0]
+    rf.display_chunk_info(first_chunk["x"], first_chunk["z"])
+    rf.delete_chunk(first_chunk["x"], first_chunk["z"])
+
     rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche")
