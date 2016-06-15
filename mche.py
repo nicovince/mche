@@ -2,6 +2,7 @@
 import os
 import sys
 import re
+import logging
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -174,9 +175,13 @@ class RegionFile:
         Done by setting location and timestamp fields to zero.
         Locations of chunks stored after deleted chunk are updated
         """
-        print "delete relative chunk (%d, %d)" % (x, z)
         chunk_idx = x + 32*z
         deleted_chunk = self.chunks[chunk_idx]
+        if deleted_chunk["offset"] == 0:
+            logging.debug("chunk (%d, %d) has not been generated" % (x, z))
+            return
+        logging.debug("delete relative chunk (%d, %d) in region %s"
+                      % (x, z, os.path.basename(self.region_filename)))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
                          if c["offset"] > deleted_chunk["offset"]]
@@ -273,8 +278,8 @@ class World:
         """
         assert dim in self.dimensions, "Dimension %s is not valid" % dim
         region_filename = self.get_region_file(dim, x, z)
-        print "delete chunk containing block (%d, %d)" % (x, z)
-        print "Edit region : %s" % region_filename
+        logging.info("Delete chunk containing block (%d, %d) in region %s"
+                     % (x, z, os.path.basename(region_filename)))
         rf = RegionFile(region_filename)
         rf.read()
         rf.delete_chunk(*rf.get_chunk_coords(x, z))
@@ -300,6 +305,9 @@ def test_region_file():
     rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche.RF")
 
 if __name__ == "__main__":
+    logging.basicConfig(filename="mche.log", level=logging.DEBUG)
+    logging.getLogger().addHandler(logging.StreamHandler())
+
     world = World("/home/pi/mc/juco")
     world.delete_chunk_block_coords("overworld", 1584, 1712)
-    test_region_file()
+    #test_region_file()
