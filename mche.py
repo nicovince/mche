@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import logging
+import itertools
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -85,6 +86,7 @@ class RegionFile:
 
             # Check filesize is equal to size read
             file_size = os.path.getsize(self.region_filename)
+            # TODO: investigate error when reading region (0, 0)
             assert total_size == file_size,\
                 "Size read in file (%d) does not match file size (%d)"\
                 % (total_size, file_size)
@@ -265,12 +267,37 @@ class World:
         """
         Return region filename for block coordinates of given dimension
         """
-        region_x = (block_x >> 4) >> 5
-        region_z = (block_z >> 4) >> 5
-        filename = "r.%d.%d.mca" % (region_x, region_z)
+        region = self.get_region_coords(block_x, block_z)
+        filename = "r.%d.%d.mca" % (region[0], region[1])
 
         region_file = os.path.join(self.get_dim_dir(dim), filename)
         return region_file
+
+    def get_region_coords(self, block_x, block_z):
+        """
+        Return tuple of region coordinates containing specified block
+        """
+        region_x = (block_x >> 4) >> 5
+        region_z = (block_z >> 4) >> 5
+        return (region_x, region_z)
+
+    def get_chunk_coords(self, block_x, block_z):
+        """
+        Return tuple of chunk coordinates containing specified block
+        """
+        chunk_x = block_x >> 4
+        chunk_z = block_z >> 4
+        return (chunk_x, chunk_z)
+
+    def get_chunks_from_region(self, region_x, region_z):
+        """
+        Return list of chunks coordinates which belongs in region
+        """
+        chunk_1 = (region_x * 32, region_z * 32)
+        chunk_2 = (region_x * 32 + 31, region_z * 32 + 31)
+        return list(itertools.product(range(chunk_1[0], chunk_2[0]),
+                                      range(chunk_1[1], chunk_2[1])))
+
 
     def delete_chunk_block_coords(self, dim, x, z):
         """
@@ -285,11 +312,52 @@ class World:
         rf.delete_chunk(*rf.get_chunk_coords(x, z))
         rf.write(region_filename + ".mche")
 
-    def delete_zone(self, dim, block_x1, block_z1, block_x2, block_z2):
+    def delete_zone(self, dim, block_1, block_2):
         """
         Delete chunks in zone delimited by two points
+
+        block_1 and block_2 are tuples of (x, z) coordinates
         """
-        # TODO
+        block_x1 = block_1[0]
+        block_z1 = block_1[1]
+        block_x2 = block_2[0]
+        block_z2 = block_2[1]
+        region_1 = self.get_region_coords(*block_1)
+        region_2 = self.get_region_coords(*block_2)
+        chunk_1 = self.get_chunk_coords(*block_1)
+        chunk_2 = self.get_chunk_coords(*block_2)
+
+        # Get regions which are included in zone
+        regions = itertools.product(range(region_1[0], region_2[0]+1),
+                                    range(region_1[1], region_2[1]+1))
+        # Get list of chunks in zone
+        chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
+                                        range(chunk_1[1], chunk_2[1]+1)))
+        logging.debug("Remove chunks between blocks (%d, %d) and (%d, %d)" %
+                      (block_x1, block_z1, block_x2, block_z2))
+        logging.debug("First Region : (%d, %d)" % (region_1[0], region_1[1]))
+        logging.debug("Last Region : (%d, %d)" % (region_2[0], region_2[1]))
+
+        for (r_x, r_z) in regions:
+            region_filename = self.get_region_file(dim, r_x*512, r_z*512)
+            # Skip non existing regions
+            if not os.path.exists(region_filename):
+                continue
+
+            logging.debug("Process %s to remove chunks" % region_filename)
+            region = RegionFile(region_filename)
+            # List of chunks in curent regions
+            region_chunks = self.get_chunks_from_region(r_x, r_z)
+            # List of chunks that needs to be deleted
+            prune_chunks = list(set(region_chunks).intersection(chunks))
+            assert len(prune_chunks) > 0,\
+                "Region %s is candidate but no chunks to delete"
+            # Read region and delete chunks
+            region.read()
+            for (c_x, c_z) in prune_chunks:
+                region.delete_chunk(c_x % 32, c_z % 32)
+            # Save region
+            region.write(region_filename + ".mche")
 
 
 def test_region_file():
@@ -309,5 +377,6 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler())
 
     world = World("/home/pi/mc/juco")
-    world.delete_chunk_block_coords("overworld", 1584, 1712)
+    #world.delete_chunk_block_coords("overworld", 1584, 1712)
+    world.delete_zone("overworld", (1584,1712), (1584,1712+510))
     #test_region_file()
