@@ -298,7 +298,6 @@ class World:
         return list(itertools.product(range(chunk_1[0], chunk_2[0]),
                                       range(chunk_1[1], chunk_2[1])))
 
-
     def delete_chunk_block_coords(self, dim, x, z):
         """
         Delete chunk at block coordinates for given dimension
@@ -377,6 +376,6 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler())
 
     world = World("/home/pi/mc/juco")
-    #world.delete_chunk_block_coords("overworld", 1584, 1712)
-    world.delete_zone("overworld", (1584,1712), (1584,1712+510))
-    #test_region_file()
+    # world.delete_chunk_block_coords("overworld", 1584, 1712)
+    world.delete_zone("overworld", (1584, 1712), (1584, 1712+510))
+    # test_region_file()
