@@ -280,6 +280,12 @@ class World:
         rf.delete_chunk(*rf.get_chunk_coords(x, z))
         rf.write(region_filename + ".mche")
 
+    def delete_zone(self, dim, block_x1, block_z1, block_x2, block_z2):
+        """
+        Delete chunks in zone delimited by two points
+        """
+        # TODO
+
 
 def test_region_file():
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
