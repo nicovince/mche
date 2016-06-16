@@ -35,6 +35,14 @@ class RegionFile:
             raise IOError
         self.x, self.z = self.get_region_coords()
 
+    def __str__(self):
+        start_x = self.x*512
+        start_z = self.z*512
+        end_x = start_x + 511
+        end_z = start_z + 511
+        return os.path.basename(self.region_filename) + " (%d, %d) - (%d, %d)"\
+            % (start_x, start_z, end_x, end_z)
+
     def read(self):
         """
         Load Region file into memory to perform actions on region
@@ -81,12 +89,29 @@ class RegionFile:
                 chunk_idx = x + 32*z
                 size = 4096 * c["sector_count"]
                 if size > 0:
+                    # chunk generated
+                    if f.tell() < c["offset"] * 4096:
+                        # Current position does not match position of current chunk
+                        gap = c["offset"] * 4096 - f.tell()
+                        logging.warning("Region %s, %d bytes gap before chunk "
+                                        "(%d, %d)'s data at offset %d"
+                                        % (self, gap, x, z, c["offset"]))
+                        f.seek(c["offset"] * 4096)
                     total_size += size
                     c["chunk_data"] = f.read(size)
+                    length = int(hexlify(c["chunk_data"][0:4]), 16)
+                    c["length"] = length
+                    if length > size:
+                        logging.warning("chunk (%d, %d) uses %d sector (%d bytes), chunk data length is %d" % (x, z, c["sector_count"], size, length))
+                        assert length > size
+
 
             # Check filesize is equal to size read
             file_size = os.path.getsize(self.region_filename)
             # TODO: investigate error when reading region (0, 0)
+            # if total_size != file_size:
+            #     for c in self.chunks:
+            #         self.display_chunk_info(c["x"], c["z"])
             assert total_size == file_size,\
                 "Size read in file (%d) does not match file size (%d)"\
                 % (total_size, file_size)
