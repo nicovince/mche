@@ -104,6 +104,9 @@ class RegionFile:
                     # chunk generated
                     if f.tell() < c.offset * 4096:
                         # Current position does not match position of current chunk
+                        # This happen if a chunk size reduces below a multiple
+                        # of sector size, the following chunks are not
+                        # relocated
                         gap = c.offset * 4096 - f.tell()
                         logging.warning("Region %s, %d bytes gap before %s"
                                         % (self, gap, c))
@@ -116,17 +119,6 @@ class RegionFile:
                         logging.warning("chunk (%d, %d) uses %d sector (%d bytes), chunk data length is %d" % (x, z, c.sector_count, size, length))
                         assert length > size
                 logging.debug("Stored %s", c)
-
-
-            # Check filesize is equal to size read
-            file_size = os.path.getsize(self.region_filename)
-            # TODO: investigate error when reading region (0, 0)
-            # if total_size != file_size:
-            #     for c in self.chunks:
-            #         self.display_chunk_info(c.x, c.z)
-            assert total_size == file_size,\
-                "Size read in file (%d) does not match file size (%d)"\
-                % (total_size, file_size)
 
     def write(self, filename):
         """
