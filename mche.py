@@ -19,6 +19,20 @@ def get_byte_seq(data, n):
     ret = unhexlify(fmt % data)
     return ret
 
+class Chunk:
+    def __init__(self, x, z, offset, sector_count):
+        self.x = x
+        self.z = z
+        self.offset = offset
+        self.sector_count = sector_count
+
+    def __repr__(self):
+        s = "(%d, %d) at sector %d (byte offset %d) using %d sectors" %\
+            (self.x, self.z, self.offset, self.offset*4096, self.sector_count)
+        if hasattr(self, 'length'):
+            s = s + ", chunk data uses %d bytes" % self.length
+        return s
+
 
 class RegionFile:
     """
@@ -53,6 +67,7 @@ class RegionFile:
             # Read location (4096 bytes)
             self.location_field = f.read(4096)
             self.chunks = list()
+            #self.chunks_obj = list()
             # byte offset of chunk coordinates (x,z) : 4((x%32) + (z%32)*32)
             for z in range(32):
                 for x in range(32):
@@ -64,10 +79,7 @@ class RegionFile:
                     data_offset = int(hexlify(cur_loc[0:3]), 16)
                     # Number of sectors (4096 bytes) occupied by chunk
                     data_count = int(hexlify(cur_loc[3]), 16)
-                    self.chunks.append({"offset": data_offset,
-                                        "sector_count": data_count,
-                                        "x": x,
-                                        "z": z})
+                    self.chunks.append(Chunk(x, z, data_offset, data_count))
 
             # Read timestamps (4096 bytes)
             self.timestamps_field = f.read(4096)
@@ -77,33 +89,33 @@ class RegionFile:
                     offset = 4*(x + 32*z)
                     cur_ts = self.timestamps_field[offset:offset+4]
                     cur_ts = int(hexlify(cur_ts), 16)
-                    self.chunks[offset/4]["timestamp"] = cur_ts
+                    self.chunks[offset/4].timestamp = cur_ts
 
             # Read chunk datas (number of data deduced from location fields
             total_size = 8192
             # go through chunk in the order they are stored in chunk data field
-            for c in sorted(self.chunks, key=lambda x: x["offset"]):
-                x = c["x"]
-                z = c["z"]
+            for c in sorted(self.chunks, key=lambda x: x.offset):
+                x = c.x
+                z = c.z
                 # chunk index in chunks list
                 chunk_idx = x + 32*z
-                size = 4096 * c["sector_count"]
+                size = 4096 * c.sector_count
                 if size > 0:
                     # chunk generated
-                    if f.tell() < c["offset"] * 4096:
+                    if f.tell() < c.offset * 4096:
                         # Current position does not match position of current chunk
-                        gap = c["offset"] * 4096 - f.tell()
-                        logging.warning("Region %s, %d bytes gap before chunk "
-                                        "(%d, %d)'s data at offset %d"
-                                        % (self, gap, x, z, c["offset"]))
-                        f.seek(c["offset"] * 4096)
+                        gap = c.offset * 4096 - f.tell()
+                        logging.warning("Region %s, %d bytes gap before %s"
+                                        % (self, gap, c))
+                        f.seek(c.offset * 4096)
                     total_size += size
-                    c["chunk_data"] = f.read(size)
-                    length = int(hexlify(c["chunk_data"][0:4]), 16)
-                    c["length"] = length
+                    c.chunk_data = f.read(size)
+                    length = int(hexlify(c.chunk_data[0:4]), 16)
+                    c.length = length
                     if length > size:
-                        logging.warning("chunk (%d, %d) uses %d sector (%d bytes), chunk data length is %d" % (x, z, c["sector_count"], size, length))
+                        logging.warning("chunk (%d, %d) uses %d sector (%d bytes), chunk data length is %d" % (x, z, c.sector_count, size, length))
                         assert length > size
+                logging.debug("Stored %s", c)
 
 
             # Check filesize is equal to size read
@@ -111,7 +123,7 @@ class RegionFile:
             # TODO: investigate error when reading region (0, 0)
             # if total_size != file_size:
             #     for c in self.chunks:
-            #         self.display_chunk_info(c["x"], c["z"])
+            #         self.display_chunk_info(c.x, c.z)
             assert total_size == file_size,\
                 "Size read in file (%d) does not match file size (%d)"\
                 % (total_size, file_size)
@@ -130,8 +142,8 @@ class RegionFile:
                     # relative chunk index in region
                     chunk_idx = x + 32*z
                     chunk = self.chunks[chunk_idx]
-                    offset_field = get_byte_seq(chunk["offset"], 3)
-                    sector_count_field = get_byte_seq(chunk["sector_count"], 1)
+                    offset_field = get_byte_seq(chunk.offset, 3)
+                    sector_count_field = get_byte_seq(chunk.sector_count, 1)
                     location_field = offset_field + sector_count_field
                     f.write(location_field)
             # Write timestamps fields
@@ -139,16 +151,16 @@ class RegionFile:
                 for x in range(32):
                     chunk_idx = x + 32*z
                     chunk = self.chunks[chunk_idx]
-                    timestamp_field = get_byte_seq(chunk["timestamp"], 4)
+                    timestamp_field = get_byte_seq(chunk.timestamp, 4)
                     f.write(timestamp_field)
 
             # write chunk's datas
-            for c in sorted(self.chunks, key=lambda x: x["offset"]):
+            for c in sorted(self.chunks, key=lambda x: x.offset):
                 # skip chunks with offset 0
-                x = c["x"]
-                z = c["z"]
-                if c["offset"] != 0:
-                    f.write(c["chunk_data"])
+                x = c.x
+                z = c.z
+                if c.offset != 0:
+                    f.write(c.chunk_data)
 
     def display_chunk_info(self, x, z):
         """
@@ -158,11 +170,11 @@ class RegionFile:
         """
         # Index of chunk in chunks list
         chunk_idx = (x % 32) + 32*(z % 32)
-        print "offset : %d" % self.chunks[chunk_idx]["offset"]
-        print "sector count : %d" % self.chunks[chunk_idx]["sector_count"]
-        print "x : %d" % self.chunks[chunk_idx]["x"]
-        print "z : %d" % self.chunks[chunk_idx]["z"]
-        print "timestamp : %d" % self.chunks[chunk_idx]["timestamp"]
+        print "offset : %d" % self.chunks[chunk_idx].offset
+        print "sector count : %d" % self.chunks[chunk_idx].sector_count
+        print "x : %d" % self.chunks[chunk_idx].x
+        print "z : %d" % self.chunks[chunk_idx].z
+        print "timestamp : %d" % self.chunks[chunk_idx].timestamp
         print "Chunk coords : " + str(self.get_chunk_coords_blk(x, z))
 
     def get_region_coords(self):
@@ -204,21 +216,21 @@ class RegionFile:
         """
         chunk_idx = x + 32*z
         deleted_chunk = self.chunks[chunk_idx]
-        if deleted_chunk["offset"] == 0:
+        if deleted_chunk.offset == 0:
             logging.debug("chunk (%d, %d) has not been generated" % (x, z))
             return
         logging.debug("delete relative chunk (%d, %d) in region %s"
                       % (x, z, os.path.basename(self.region_filename)))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
-                         if c["offset"] > deleted_chunk["offset"]]
+                         if c.offset > deleted_chunk.offset]
         # recompute offset of chunks stored after delted chunk
         for c in update_chunks:
-            c["offset"] = c["offset"] - deleted_chunk["sector_count"]
+            c.offset = c.offset - deleted_chunk.sector_count
         # reset offset, sector count and timestamp of deleted chunk
-        deleted_chunk["offset"] = 0
-        deleted_chunk["sector_count"] = 0
-        deleted_chunk["timestamp"] = 0
+        deleted_chunk.offset = 0
+        deleted_chunk.sector_count = 0
+        deleted_chunk.timestamp = 0
 
     def get_relative_chunk_coords(self, chunk_x, chunk_z):
         """
@@ -389,10 +401,10 @@ def test_region_file():
     rf.read()
     rf.display_chunk_info(3, 11)
     rf.delete_chunk(3, 11)
-    # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x["offset"])
-    #                if c["offset"] > 0][0]
-    # rf.display_chunk_info(first_chunk["x"], first_chunk["z"])
-    # rf.delete_chunk(first_chunk["x"], first_chunk["z"])
+    # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
+    #                if c.offset > 0][0]
+    # rf.display_chunk_info(first_chunk.x, first_chunk.z)
+    # rf.delete_chunk(first_chunk.x, first_chunk.z)
 
     rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche.RF")
 
@@ -400,7 +412,7 @@ if __name__ == "__main__":
     logging.basicConfig(filename="mche.log", level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
 
-    world = World("/home/pi/mc/juco")
+    #world = World("/home/pi/mc/juco")
     # world.delete_chunk_block_coords("overworld", 1584, 1712)
-    world.delete_zone("overworld", (1584, 1712), (1584, 1712+510))
-    # test_region_file()
+    #world.delete_zone("overworld", (1584, 1712), (1584, 1712+510))
+    test_region_file()
