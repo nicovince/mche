@@ -48,6 +48,7 @@ class RegionFile:
         if not os.path.exists(filename):
             raise IOError
         self.x, self.z = self.get_region_coords()
+        self.has_gap = False
 
     def __str__(self):
         start_x = self.x*512
@@ -110,6 +111,7 @@ class RegionFile:
                         gap = c.offset * 4096 - f.tell()
                         logging.warning("Region %s, %d bytes gap before %s"
                                         % (self, gap, c))
+                        self.has_gap = True
                         f.seek(c.offset * 4096)
                     total_size += size
                     c.chunk_data = f.read(size)
@@ -148,10 +150,14 @@ class RegionFile:
 
             # write chunk's datas
             for c in sorted(self.chunks, key=lambda x: x.offset):
-                # skip chunks with offset 0
                 x = c.x
                 z = c.z
+                # skip chunks with offset 0
                 if c.offset != 0:
+                    # Seek to correct position where chunk data needs to be
+                    if f.tell() != c.offset * 4096:
+                        pad_size = c.offset * 4096 - f.tell()
+                        f.write('\0'*pad_size)
                     f.write(c.chunk_data)
 
     def display_chunk_info(self, x, z):
