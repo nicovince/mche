@@ -25,11 +25,25 @@ class Chunk:
         self.z = z
         self.offset = offset
         self.sector_count = sector_count
+        self.timestamp = None
+        # chunk_data includes padding to multiple of sector size
+        # length : 4 bytes
+        # compression kind : 1 byte
+        # chunk payload : length - 1 bytes
+        self.chunk_data = None
+        # length of chunk data (withou
+        self.length = None
+
+    def __eq__(self, other):
+        """
+        Compare all fields of Chunk
+        """
+        return self.__dict__ == other.__dict__
 
     def __repr__(self):
         s = "(%d, %d) at sector %d (byte offset %d) using %d sectors" %\
             (self.x, self.z, self.offset, self.offset*4096, self.sector_count)
-        if hasattr(self, 'length'):
+        if self.length is not None:
             s = s + ", chunk data uses %d bytes" % self.length
         return s
 
