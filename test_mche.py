@@ -60,6 +60,12 @@ def test_chunk_eq():
 
     return errors == 0
 
+def test_region_eq():
+    """Region Equality Test"""
+    filename = "/home/pi/mc/juco/region/r.0.0.mca"
+    filename2 = "/home/pi/mc/juco/region/r.0.1.mca"
+    rf
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w', level=logging.ERROR)
     failed = 0

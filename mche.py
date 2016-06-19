@@ -63,6 +63,24 @@ class RegionFile:
             raise IOError
         self.x, self.z = self.get_region_coords()
         self.has_gap = False
+        self.chunks = None
+        self.location_field = None
+        self.timestamps_field = None
+
+    def __eq__(self, other):
+        """
+        Compare region coords and chunks equalities
+        """
+        if self.x != other.x:
+            return False
+        if self.z != other.z:
+            return False
+        for c_idx in range(1024):
+            c1 = self.chunks[c_idx]
+            c2 = other.chunks[c_idx]
+            if c1 != c2:
+                return False
+        return True
 
     def __str__(self):
         start_x = self.x*512
@@ -411,6 +429,7 @@ class World:
 def test_region_file():
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
+    # 3, 11 is the last chunk stored in the file
     rf.display_chunk_info(3, 11)
     rf.delete_chunk(3, 11)
     # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
@@ -427,4 +446,4 @@ if __name__ == "__main__":
     #world = World("/home/pi/mc/juco")
     # world.delete_chunk_block_coords("overworld", 1584, 1712)
     #world.delete_zone("overworld", (1584, 1712), (1584, 1712+510))
-    test_region_file()
+    #test_region_file()
