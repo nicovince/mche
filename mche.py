@@ -480,6 +480,7 @@ def test_region_file():
 # --info, -i : gaps, number of chunks generated, histogram by timestamps
 # --remove-gaps, -r : none
 # --debug, -d : none
+# --dimension : overworld, nether, theend
 
 if __name__ == "__main__":
     logging.basicConfig(filename="mche.log", level=logging.DEBUG)
