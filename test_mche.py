@@ -19,6 +19,14 @@ def log_tp(test, name):
         print "TP KO : %s" % name
     return test
 
+def log_test(test_func):
+    print "------------------"
+    print test_func.__doc__
+    if test_func():
+        print "PASS : %s" % test_func.__doc__
+    else:
+        print "FAIL : %s" % test_func.__doc__
+
 def test_read_write():
     path = "/home/pi/mc/juco/region"
     diff = 0
@@ -54,24 +62,15 @@ def test_chunk_eq():
     c1_bis = rf_bis.chunks[0]
     errors = 0
 
-    TP = "__eq__ on different chunks"
-    if not c1 == c2:
-        print "TP OK : %s" % TP
-    else:
-        print "TP KO : %s" % TP
+    if not log_tp(c1 != c2, "__eq__ on different chunks"):
         print c1
         print c2
         errors = errors + 1
 
-    TP = "__eq__ on identical chunks"
-    if c1 == c1_bis:
-        print "TP OK: %s" % TP
-    else:
-        print "TP KO : %s" % TP
+    if not log_tp(c1 == c1_bis, "__eq__ on identical chunks"):
         print c1
         print c1_bis
         errors = errors + 1
-
     return errors == 0
 
 def test_region_eq():
@@ -105,18 +104,14 @@ def test_region_eq():
     # Remove chunk and check equality test fails
     rf_bis.delete_chunk(0, 0)
     log_tp(rf != rf_bis, "__eq__ on identical region file modulo one chunk")
-    return errors
+    return errors == 0
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w', level=logging.ERROR)
     failed = 0
 
-    if test_chunk_eq():
-        print "PASS : %s" % test_chunk_eq.__doc__
-    else:
-        print "FAIL : %s" % test_chunk_eq.__doc__
-
-    test_region_eq()
+    log_test(test_chunk_eq)
+    log_test(test_region_eq)
 
     #if test_read_write():
     #    print "Test PASS : Read Write"
