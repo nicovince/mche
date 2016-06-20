@@ -4,6 +4,20 @@ import filecmp
 import mche
 import os
 import re
+import sys
+
+def log_tp(test, name):
+    """
+    Log Test point
+
+    test : true when test is successful
+    name : Name of the test to log
+    """
+    if test:
+        print "TP OK : %s" % name
+    else:
+        print "TP KO : %s" % name
+    return test
 
 def test_read_write():
     path = "/home/pi/mc/juco/region"
@@ -62,9 +76,36 @@ def test_chunk_eq():
 
 def test_region_eq():
     """Region Equality Test"""
+    errors = 0
     filename = "/home/pi/mc/juco/region/r.0.0.mca"
     filename2 = "/home/pi/mc/juco/region/r.0.1.mca"
-    rf
+    rf = mche.RegionFile(filename)
+    rf.read()
+    rf2 = mche.RegionFile(filename2)
+    rf2.read()
+    rf_bis = mche.RegionFile(filename)
+    rf_bis.read()
+
+    if not log_tp(rf != rf2, "__eq__ on different region files"):
+        errors += 1
+    if not log_tp(rf == rf_bis, "__eq__ on identical region files"):
+        print "rf.x : %d" % rf.x
+        print "rf.z : %d" % rf.z
+        print "rf_bis.x : %d" % rf_bis.x
+        print "rf_bis.z : %d" % rf_bis.z
+        for i in range(1024):
+            if rf.chunks[i] != rf_bis.chunks[i]:
+                print "%d differents :" % i
+                print "  - %s" % rf.chunks[i]
+                print repr(rf.chunks[i])
+                print "  - %s" % rf_bis.chunks[i]
+                print repr(rf_bis.chunks[i])
+        errors += 1
+
+    # Remove chunk and check equality test fails
+    rf_bis.delete_chunk(0, 0)
+    log_tp(rf != rf_bis, "__eq__ on identical region file modulo one chunk")
+    return errors
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w', level=logging.ERROR)
@@ -74,6 +115,8 @@ if __name__ == "__main__":
         print "PASS : %s" % test_chunk_eq.__doc__
     else:
         print "FAIL : %s" % test_chunk_eq.__doc__
+
+    test_region_eq()
 
     #if test_read_write():
     #    print "Test PASS : Read Write"

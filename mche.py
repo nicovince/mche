@@ -40,7 +40,18 @@ class Chunk:
         """
         return self.__dict__ == other.__dict__
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __repr__(self):
+        s = "x:%d - z:%d - offset:%d - sector_count:%d" % (self.x, self.z,
+                                                           self.offset,
+                                                           self.sector_count)
+        s = s + " - timestamp:%d - length:%d" % (self.timestamp, self.length)
+        s = s + " - hash(chunk_data):%d" % self.chunk_data.__hash__()
+        return s
+
+    def __str__(self):
         s = "(%d, %d) at sector %d (byte offset %d) using %d sectors" %\
             (self.x, self.z, self.offset, self.offset*4096, self.sector_count)
         if self.length is not None:
@@ -81,6 +92,9 @@ class RegionFile:
             if c1 != c2:
                 return False
         return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __str__(self):
         start_x = self.x*512
