@@ -19,6 +19,7 @@ def get_byte_seq(data, n):
     ret = unhexlify(fmt % data)
     return ret
 
+
 class Chunk:
     def __init__(self, x, z, offset, sector_count):
         self.x = x
@@ -114,7 +115,6 @@ class RegionFile:
             # Read location (4096 bytes)
             self.location_field = f.read(4096)
             self.chunks = list()
-            #self.chunks_obj = list()
             # byte offset of chunk coordinates (x,z) : 4((x%32) + (z%32)*32)
             for z in range(32):
                 for x in range(32):
@@ -150,9 +150,9 @@ class RegionFile:
                 if size > 0:
                     # chunk generated
                     if f.tell() < c.offset * 4096:
-                        # Current position does not match position of current chunk
-                        # This happen if a chunk size reduces below a multiple
-                        # of sector size, the following chunks are not
+                        # Current position does not match position of current
+                        # chunk This happen if a chunk size reduces below a
+                        # multiple of sector size, the following chunks are not
                         # relocated
                         gap = c.offset * 4096 - f.tell()
                         logging.warning("Region %s, %d bytes gap before %s"
@@ -164,9 +164,11 @@ class RegionFile:
                     length = int(hexlify(c.chunk_data[0:4]), 16)
                     c.length = length
                     if length > size:
-                        logging.warning("chunk (%d, %d) uses %d sector (%d bytes), chunk data length is %d" % (x, z, c.sector_count, size, length))
+                        logging.warning("chunk (%d, %d) uses %d sector "
+                                        "(%d bytes), chunk data length is %d"
+                                        % (x, z, c.sector_count, size, length))
                         assert length > size
-                #logging.debug("Stored %s", c)
+                # logging.debug("Stored %s", c)
 
     def write(self, filename):
         """
@@ -387,7 +389,7 @@ class World:
         Region file is overwritten unless ext is provided, in which case it is
         used to suffix region file
         """
-        if ext == None:
+        if ext is None:
             ext = ""
         assert dim in self.dimensions, "Dimension %s is not valid" % dim
         region_filename = self.get_region_file(dim, x, z)
@@ -404,9 +406,9 @@ class World:
 
         block_1 and block_2 are tuples of (x, z) coordinates
         """
-        if ext == None:
+        if ext is None:
             ext = ""
-        # 
+        # set block1 as top-left, block2 as bottom-right
         block_x1 = min(block_1[0], block_2[0])
         block_z1 = min(block_1[1], block_2[1])
         block_x2 = max(block_1[0], block_2[0])
@@ -486,11 +488,6 @@ if __name__ == "__main__":
     logging.basicConfig(filename="mche.log", level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
 
-    #world = World("/home/pi/mc/juco")
-    # world.delete_chunk_block_coords("overworld", 1584, 1712)
-    #world.delete_zone("overworld", (1584, 1712), (1584, 1712+510))
-    #test_region_file()
+    # world = World("/home/pi/mc/juco")
     world = World("/home/nicolas/MinecraftServer/Creatif/juco")
-    #world.delete_chunk_block_coords("overworld", 393, -10)
-    #world.delete_chunk_block_coords("overworld", 405, -20)
-    world.delete_zone("overworld", (393,-10), (405, -20))
+    world.delete_zone("overworld", (393, -10), (405, -20))

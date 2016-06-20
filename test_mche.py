@@ -6,6 +6,7 @@ import os
 import re
 import sys
 
+
 def log_tp(test, name):
     """
     Log Test point
@@ -19,6 +20,7 @@ def log_tp(test, name):
         print "TP KO : %s" % name
     return test
 
+
 def log_test(test_func):
     print "------------------"
     print test_func.__doc__
@@ -26,6 +28,7 @@ def log_test(test_func):
         print "PASS : %s" % test_func.__doc__
     else:
         print "FAIL : %s" % test_func.__doc__
+
 
 def test_read_write():
     """Read and Write Region files"""
@@ -45,6 +48,7 @@ def test_read_write():
             os.remove(mche_file)
 
     return diff == 0
+
 
 def test_chunk_eq():
     """Chunk Equality Test"""
@@ -68,6 +72,7 @@ def test_chunk_eq():
         print c1_bis
         errors = errors + 1
     return errors == 0
+
 
 def test_region_eq():
     """Region Equality Test"""
@@ -103,10 +108,10 @@ def test_region_eq():
     return errors == 0
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="test_mche.log", filemode='w', level=logging.ERROR)
+    logging.basicConfig(filename="test_mche.log", filemode='w',
+                        level=logging.ERROR)
     failed = 0
 
     log_test(test_chunk_eq)
     log_test(test_region_eq)
     # log_test(test_read_write) # Long test
-
