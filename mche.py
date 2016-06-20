@@ -457,6 +457,7 @@ class World:
 
 
 def test_region_file():
+    # TODO: automate testing and move to test_mche.py
     rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
     rf.read()
     # 3, 11 is the last chunk stored in the file
@@ -468,6 +469,17 @@ def test_region_file():
     # rf.delete_chunk(first_chunk.x, first_chunk.z)
 
     rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche.RF")
+
+# TODO
+# options : arg
+# --delete-chunk : chunk coords
+# --delete-zone : chunk coords - chunk coords
+# --del-chunk-at-block : block coords
+# --del-zone-between-blocks : block coords - block coords
+# --suffix, -s : ext
+# --info, -i : gaps, number of chunks generated, histogram by timestamps
+# --remove-gaps, -r : none
+# --debug, -d : none
 
 if __name__ == "__main__":
     logging.basicConfig(filename="mche.log", level=logging.DEBUG)
