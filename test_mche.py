@@ -73,6 +73,7 @@ def test_chunk_eq():
         errors = errors + 1
     return errors == 0
 
+
 def test_delete_chunk():
     """Chunk Deletion Test"""
     # TODO: automate testing
@@ -108,22 +109,21 @@ def test_delete_chunk():
                 if c1 != c2:
                     chunks_preserved = False
                     errors += 1
-                    log_tp(chunks_preserved, "Chunk (%d, %d) shall be preserved"
-                           % (x, z))
+                    log_tp(chunks_preserved,
+                           "Chunk (%d, %d) shall be preserved" % (x, z))
             else:
                 if not c2.is_generated():
                     chunk_deleted = False
                     errors += 1
-                log_tp(chunk_deleted, "Chunk (%d, %d) shall be cleared" % (x, z))
+                log_tp(chunk_deleted, "Chunk (%d, %d) shall be cleared"
+                       % (x, z))
     log_tp(chunks_preserved, "Chunks others than (3, 11) are untouched")
     return (errors == 0)
-
 
     # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
     #                if c.offset > 0][0]
     # rf.display_chunk_info(first_chunk.x, first_chunk.z)
     # rf.delete_chunk(first_chunk.x, first_chunk.z)
-
 
 
 def test_region_eq():

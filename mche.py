@@ -62,7 +62,7 @@ class Chunk:
     def is_generated(self):
         """Return True if chunk has been generated"""
         return self.offset == 0 and self.sector_count == 0 \
-                and self.timestamp == 0
+            and self.timestamp == 0
 
 
 class RegionFile:
