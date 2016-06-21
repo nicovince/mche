@@ -4,6 +4,7 @@ import sys
 import re
 import logging
 import itertools
+from optparse import OptionParser
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -475,9 +476,44 @@ class World:
 # --debug, -d : none
 # --dimension : overworld, nether, theend
 
+def get_coords_from_str(s):
+    """
+    Return list of coords from string
+
+    a string coordinate is formatted as 'X0xZ0' where X0 and Z0 are integers
+    Multiple coords are separated with a comma (eg : 'X0xZ0,X1xZ1')
+    """
+    # list of coords as strings
+    l_s = s.split(",")
+    ret = list()
+    for c_s in l_s:
+        ret.append(tuple(c_s.split("x")))
+    return ret
+
+def opt_chunk_delete(option, opt_str, value, parser):
+    coords = get_coords_from_str(value)
+    parser.values.__dict__[option.dest] = coords
+
+
+def main():
+    parser = OptionParser()
+    parser.add_option("-d", "--debug", action="store_true", dest="debug",
+                      help="Enable debug trace in log file", default=False)
+    parser.add_option("--delete-chunk", action="callback", callback=opt_chunk_delete,
+                      type="string", nargs=1, dest="del_chunk_coords",
+                      help="Delete one or multiple chunk at provided"
+                      "coordinates. A single chunk coordinate is written as "
+                      "X0xZ0 where X0 and Z0 are integers. Multiple chunk "
+                      "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
+    (options, args) = parser.parse_args()
+    print options
+    print args
+    sys.exit(0)
+
 if __name__ == "__main__":
     logging.basicConfig(filename="mche.log", level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
+    main()
 
     # world = World("/home/pi/mc/juco")
     world = World("/home/nicolas/MinecraftServer/Creatif/juco")
