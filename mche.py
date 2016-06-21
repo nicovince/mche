@@ -487,10 +487,18 @@ def get_coords_from_str(s):
     l_s = s.split(",")
     ret = list()
     for c_s in l_s:
-        ret.append(tuple(c_s.split("x")))
+        # Split coord into two integers
+        coords_s = c_s.split("x")
+        # Check we have only two integers
+        assert len(coords_s) == 2, "Coords should have two values, %s has %d" \
+            % (c_s, len(coords_s))
+        # Cast from string to integers
+        coords = [int(c) for c in coords_s]
+        ret.append(coords)
     return ret
 
 def opt_chunk_delete(option, opt_str, value, parser):
+    """Callback to parse coordinates and put them into a list"""
     coords = get_coords_from_str(value)
     parser.values.__dict__[option.dest] = coords
 
@@ -504,6 +512,12 @@ def main():
                       help="Delete one or multiple chunk at provided"
                       "coordinates. A single chunk coordinate is written as "
                       "X0xZ0 where X0 and Z0 are integers. Multiple chunk "
+                      "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
+    parser.add_option("--del-chunk-at-block", action="callback", callback=opt_chunk_delete,
+                      type="string", nargs=1, dest="del_chunk_blk_coords",
+                      help="Delete one or multiple chunk at provided block "
+                      "coordinates. A single chunk coordinate is written as "
+                      "X0xZ0 where X0 and Z0 are integers. Multiple blocks "
                       "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
     (options, args) = parser.parse_args()
     print options
