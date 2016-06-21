@@ -59,6 +59,11 @@ class Chunk:
             s = s + ", chunk data uses %d bytes" % self.length
         return s
 
+    def is_generated(self):
+        """Return True if chunk has been generated"""
+        return self.offset == 0 and self.sector_count == 0 \
+                and self.timestamp == 0
+
 
 class RegionFile:
     """
@@ -457,20 +462,6 @@ class World:
             # Save region
             region.write(region_filename + ext)
 
-
-def test_region_file():
-    # TODO: automate testing and move to test_mche.py
-    rf = RegionFile("/home/pi/mc/juco/region/r.3.3.mca")
-    rf.read()
-    # 3, 11 is the last chunk stored in the file
-    rf.display_chunk_info(3, 11)
-    rf.delete_chunk(3, 11)
-    # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
-    #                if c.offset > 0][0]
-    # rf.display_chunk_info(first_chunk.x, first_chunk.z)
-    # rf.delete_chunk(first_chunk.x, first_chunk.z)
-
-    rf.write("/home/pi/mc/juco/region/r.3.3.mca.mche.RF")
 
 # TODO
 # options : arg

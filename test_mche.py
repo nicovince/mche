@@ -73,6 +73,58 @@ def test_chunk_eq():
         errors = errors + 1
     return errors == 0
 
+def test_delete_chunk():
+    """Chunk Deletion Test"""
+    # TODO: automate testing
+    rf_name = "/home/pi/mc/juco/region/r.3.3.mca"
+    mche_ext = ".mche"
+    rf_mche_name = rf_name + mche_ext
+    rf = mche.RegionFile(rf_name)
+    rf.read()
+    # 3, 11 is the last chunk stored in the file
+    # remove it
+    rf.delete_chunk(3, 11)
+    rf.write(rf_mche_name)
+    # Read Region file with chunk removed
+    rf_mche = mche.RegionFile(rf_mche_name)
+    rf_mche.read()
+
+    # Re-read original region file
+    rf = mche.RegionFile(rf_name)
+    rf.read()
+
+    # Compare
+    chunks_preserved = True
+    chunk_deleted = True
+    errors = 0
+    for z in range(32):
+        for x in range(32):
+            i = 32*z + x
+            c1 = rf.chunks[i]
+            c2 = rf_mche.chunks[i]
+            # Check preserved chunks are identicals, and removed chunk is not
+            # present anymore
+            if x != 3 or z != 11:
+                if c1 != c2:
+                    chunks_preserved = False
+                    errors += 1
+                    log_tp(chunks_preserved, "Chunk (%d, %d) shall be preserved"
+                           % (x, z))
+            else:
+                if not c2.is_generated():
+                    chunk_deleted = False
+                    errors += 1
+                log_tp(chunk_deleted, "Chunk (%d, %d) shall be cleared" % (x, z))
+    log_tp(chunks_preserved, "Chunks others than (3, 11) are untouched")
+    return (errors == 0)
+
+
+    # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
+    #                if c.offset > 0][0]
+    # rf.display_chunk_info(first_chunk.x, first_chunk.z)
+    # rf.delete_chunk(first_chunk.x, first_chunk.z)
+
+
 
 def test_region_eq():
     """Region Equality Test"""
@@ -114,4 +166,5 @@ if __name__ == "__main__":
 
     log_test(test_chunk_eq)
     log_test(test_region_eq)
+    log_test(test_delete_chunk)
     # log_test(test_read_write) # Long test
