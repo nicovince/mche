@@ -159,6 +159,50 @@ def test_region_eq():
     log_tp(rf != rf_bis, "__eq__ on identical region file modulo one chunk")
     return errors == 0
 
+
+def test_coords_from_str():
+    """String Coordinates Parser"""
+    errors = 0
+    coords = mche.get_coords_from_str("5x3")
+    print coords
+    if not log_tp(coords[0][0] == 5 and coords[0][1] == 3, "Parse 5x3"):
+        errors += 1
+
+    test_coords = [[5,10], [12,13], [-5,-2], [-7,0], [0,-9]]
+    test_string = ""
+    for (x,z) in test_coords:
+        test_string += "%dx%d," % (x, z)
+    # Remove last ','
+    test_string = test_string[0:-1]
+    coords = mche.get_coords_from_str(test_string)
+    if not log_tp(coords == test_coords, "Parse %s" % test_string):
+        errors += 1
+
+    e = None
+    test_string = "zxy"
+    try:
+        coords = mche.get_coords_from_str(test_string)
+    except ValueError:
+        e = ValueError
+    except:
+        print "got unexpected exception"
+    if not log_tp(e == ValueError, "Raise ValueError on %s" % test_string):
+        errors += 1
+
+    e = None
+    test_string="1x-s12"
+    try:
+        coords = mche.get_coords_from_str(test_string)
+    except ValueError:
+        e = ValueError
+    except:
+        print "got unexpected exception"
+    if not log_tp(e == ValueError, "Raise ValueError on %s" % test_string):
+        errors += 1
+
+    return errors == 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.ERROR)
@@ -167,4 +211,5 @@ if __name__ == "__main__":
     log_test(test_chunk_eq)
     log_test(test_region_eq)
     log_test(test_delete_chunk)
+    log_test(test_coords_from_str)
     # log_test(test_read_write) # Long test
