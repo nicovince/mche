@@ -203,13 +203,19 @@ def test_coords_from_str():
     return errors == 0
 
 
+def test_zone_from_str():
+    """String Zone Parser"""
+    zones = "12x34-56x72"
+    print mche.get_zone_from_str(zones)
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.ERROR)
     failed = 0
 
-    log_test(test_chunk_eq)
-    log_test(test_region_eq)
-    log_test(test_delete_chunk)
-    log_test(test_coords_from_str)
+    #log_test(test_chunk_eq)
+    #log_test(test_region_eq)
+    #log_test(test_delete_chunk)
+    #log_test(test_coords_from_str)
+    test_zone_from_str()
     # log_test(test_read_write) # Long test

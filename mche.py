@@ -504,6 +504,25 @@ def opt_chunk_delete(option, opt_str, value, parser):
     parser.values.__dict__[option.dest] = coords
 
 
+def get_zone_from_str(s):
+    """
+    Return tuple of two coords from string
+
+    string if formated as 'X0xZ0-X1xZ1'
+    Multiple zones are separated with comma
+    """
+    zones = s.split(",")
+    ret = list()
+    for z in zones:
+        coords = z.split("-")
+        assert len(coords) == 2, "Zone should have two coords"
+        zone = list()
+        for c in coords:
+            zone.append(get_coords_from_str(c)[0])
+        ret.append(zone)
+    return ret
+
+
 def main():
     parser = OptionParser()
     parser.add_option("-d", "--debug", action="store_true", dest="debug",
