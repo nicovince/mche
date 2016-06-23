@@ -168,9 +168,9 @@ def test_coords_from_str():
     if not log_tp(coords[0][0] == 5 and coords[0][1] == 3, "Parse 5x3"):
         errors += 1
 
-    test_coords = [[5,10], [12,13], [-5,-2], [-7,0], [0,-9]]
+    test_coords = [[5, 10], [12, 13], [-5, -2], [-7, 0], [0, -9]]
     test_string = ""
-    for (x,z) in test_coords:
+    for (x, z) in test_coords:
         test_string += "%dx%d," % (x, z)
     # Remove last ','
     test_string = test_string[0:-1]
@@ -190,7 +190,7 @@ def test_coords_from_str():
         errors += 1
 
     e = None
-    test_string="1x-s12"
+    test_string = "1x-s12"
     try:
         coords = mche.get_coords_from_str(test_string)
     except ValueError:
@@ -212,7 +212,7 @@ def test_zone_from_str():
                   "Parse Zone %s" % zones):
         errors += 1
 
-    zones_exp = [[[-1, 0], [3,-5]], [[-20, -32],[45,-12]]]
+    zones_exp = [[[-1, 0], [3, -5]], [[-20, -32], [45, -12]]]
     zones = mche.get_str_from_zones(zones_exp)
     if not log_tp(mche.get_zones_from_str(zones) == zones_exp,
                   "Parse zones %s" % zones):

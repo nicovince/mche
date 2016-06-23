@@ -541,8 +541,6 @@ def get_str_from_zones(zones):
     """Return string describing zones"""
     s = ""
     for z in zones:
-        ((x0,z0),(x1,z1)) = z
-        #s += "%dx%d_%dx%d," % (x0, z0, x1, z1)
         s += "%s_%s," % (get_str_from_coords(z[0]), get_str_from_coords(z[1]))
     # remove last ','
     s = s[0:-1]
