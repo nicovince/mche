@@ -508,13 +508,13 @@ def get_zone_from_str(s):
     """
     Return tuple of two coords from string
 
-    string if formated as 'X0xZ0-X1xZ1'
+    string if formated as 'X0xZ0_X1xZ1'
     Multiple zones are separated with comma
     """
     zones = s.split(",")
     ret = list()
     for z in zones:
-        coords = z.split("-")
+        coords = z.split("_")
         assert len(coords) == 2, "Zone should have two coords"
         zone = list()
         for c in coords:

@@ -206,7 +206,7 @@ def test_coords_from_str():
 def test_zone_from_str():
     """String Zone Parser"""
     errors = 0
-    zones = "12x34-56x72"
+    zones = "12x34_56x72"
     zones_exp = [[[12, 34], [56, 72]]]
     if not log_tp(mche.get_zone_from_str(zones) == zones_exp,
                   "Parse Zone %s" % zones):
