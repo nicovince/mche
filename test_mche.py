@@ -208,9 +208,16 @@ def test_zone_from_str():
     errors = 0
     zones = "12x34_56x72"
     zones_exp = [[[12, 34], [56, 72]]]
-    if not log_tp(mche.get_zone_from_str(zones) == zones_exp,
+    if not log_tp(mche.get_zones_from_str(zones) == zones_exp,
                   "Parse Zone %s" % zones):
         errors += 1
+
+    zones_exp = [[[-1, 0], [3,-5]], [[-20, -32],[45,-12]]]
+    zones = mche.get_str_from_zones(zones_exp)
+    if not log_tp(mche.get_zones_from_str(zones) == zones_exp,
+                  "Parse zones %s" % zones):
+        errors += 1
+
     return errors == 0
 
 if __name__ == "__main__":

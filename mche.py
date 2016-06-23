@@ -498,13 +498,27 @@ def get_coords_from_str(s):
     return ret
 
 
+def get_str_from_coords(coords):
+    """Return string describing list of coords"""
+    s = ""
+    for coord in coords:
+        if type(coord) == int:
+            s += "%dx" % coord
+        else:
+            (x, z) = coord
+            s += "%dx%d," % (x, z)
+    # remove last ',' or 'x'
+    s = s[0:-1]
+    return s
+
+
 def opt_chunk_delete(option, opt_str, value, parser):
     """Callback to parse coordinates and put them into a list"""
     coords = get_coords_from_str(value)
     parser.values.__dict__[option.dest] = coords
 
 
-def get_zone_from_str(s):
+def get_zones_from_str(s):
     """
     Return tuple of two coords from string
 
@@ -521,6 +535,18 @@ def get_zone_from_str(s):
             zone.append(get_coords_from_str(c)[0])
         ret.append(zone)
     return ret
+
+
+def get_str_from_zones(zones):
+    """Return string describing zones"""
+    s = ""
+    for z in zones:
+        ((x0,z0),(x1,z1)) = z
+        #s += "%dx%d_%dx%d," % (x0, z0, x1, z1)
+        s += "%s_%s," % (get_str_from_coords(z[0]), get_str_from_coords(z[1]))
+    # remove last ','
+    s = s[0:-1]
+    return s
 
 
 def main():
