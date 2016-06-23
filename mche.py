@@ -475,7 +475,6 @@ class World:
 # --remove-gaps, -r : none
 # --debug, -d : none
 # --dimension : overworld, nether, theend
-
 def get_coords_from_str(s):
     """
     Return list of coords from string
@@ -547,6 +546,12 @@ def get_str_from_zones(zones):
     return s
 
 
+def opt_zone_delete(option, opt_str, value, parser):
+    """Calback to parse zones and put them into a list"""
+    zones = get_zones_from_str(value)
+    parser.values.__dict__[option.dest] = zones
+
+
 def main():
     parser = OptionParser()
     parser.add_option("-d", "--debug", action="store_true", dest="debug",
@@ -565,6 +570,22 @@ def main():
                       "coordinates. A single chunk coordinate is written as "
                       "X0xZ0 where X0 and Z0 are integers. Multiple blocks "
                       "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
+    parser.add_option("--delete-zone", action="callback",
+                      callback=opt_zone_delete, type="string", nargs=1,
+                      dest="del_zone_coords",
+                      help="Delete zone in rectangle specified by the chunks "
+                      "coordinates of the two opposite corners. Coords of "
+                      "opposite chunks are separated by an underscore (eg : "
+                      "X0xZ0_X1xZ1). "
+                      "Multiple zones are separated by a comma.")
+    parser.add_option("--del-zone-between-blocks", action="callback",
+                      callback=opt_zone_delete, type="string", nargs=1,
+                      dest="del_zone_blk_coords",
+                      help="Delete zone in rectangle specified by the blocks "
+                      "coordinates of the two opposite corners. Coords of "
+                      "opposite blocks are separated by an underscore (eg : "
+                      "X0xZ0_X1xZ1). "
+                      "Multiple zones are separated by a comma.")
     (options, args) = parser.parse_args()
     print options
     print args
