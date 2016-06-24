@@ -4,7 +4,8 @@ import sys
 import re
 import logging
 import itertools
-from optparse import OptionParser
+#from optparse import OptionParser
+import argparse
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -511,10 +512,9 @@ def get_str_from_coords(coords):
     return s
 
 
-def opt_chunk_delete(option, opt_str, value, parser):
+def opt_chunk_delete(parser, value):
     """Callback to parse coordinates and put them into a list"""
-    coords = get_coords_from_str(value)
-    parser.values.__dict__[option.dest] = coords
+    return get_coords_from_str(value)
 
 
 def get_zones_from_str(s):
@@ -546,65 +546,62 @@ def get_str_from_zones(zones):
     return s
 
 
-def opt_zone_delete(option, opt_str, value, parser):
-    """Calback to parse zones and put them into a list"""
-    zones = get_zones_from_str(value)
-    parser.values.__dict__[option.dest] = zones
+def opt_zone_delete(parser, value):
+    """Callback to parse zones and put them into a list"""
+    return get_zones_from_str(value)
 
 
 def main():
-    parser = OptionParser()
-    parser.add_option("-d", "--debug", action="store_true", dest="debug",
-                      help="Enable debug trace in log file "
-                      "(default : %default)",
+    parser = argparse.ArgumentParser(description="Manipulate Region Files of "
+                                     "Minecraft World",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("world", help="World Folder")
+    parser.add_argument("-d", "--debug", action="store_true",
+                      help="Enable debug trace in log file",
                       default=False)
-    parser.add_option("--delete-chunk", action="callback",
-                      callback=opt_chunk_delete, type="string", nargs=1,
-                      dest="del_chunk_coords",
-                      help="Delete one or multiple chunk at provided"
-                      "coordinates. A single chunk coordinate is written as "
-                      "X0xZ0 where X0 and Z0 are integers. Multiple chunk "
-                      "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
-    parser.add_option("--del-chunk-at-block", action="callback",
-                      callback=opt_chunk_delete, type="string", nargs=1,
-                      dest="del_chunk_blk_coords",
-                      help="Delete one or multiple chunk at provided block "
-                      "coordinates. A single chunk coordinate is written as "
-                      "X0xZ0 where X0 and Z0 are integers. Multiple blocks "
-                      "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
-    parser.add_option("--delete-zone", action="callback",
-                      callback=opt_zone_delete, type="string", nargs=1,
-                      dest="del_zone_coords",
-                      help="Delete zone in rectangle specified by the chunks "
-                      "coordinates of the two opposite corners. Coords of "
-                      "opposite chunks are separated by an underscore (eg : "
-                      "X0xZ0_X1xZ1). "
-                      "Multiple zones are separated by a comma.")
-    parser.add_option("--del-zone-between-blocks", action="callback",
-                      callback=opt_zone_delete, type="string", nargs=1,
-                      dest="del_zone_blk_coords",
-                      help="Delete zone in rectangle specified by the blocks "
-                      "coordinates of the two opposite corners. Coords of "
-                      "opposite blocks are separated by an underscore (eg : "
-                      "X0xZ0_X1xZ1). "
-                      "Multiple zones are separated by a comma.")
-    parser.add_option("--dimension", action="store", dest="dimension",
-                      type="string", default="overworld",
-                      help="Specify dimension to work on (default : %default)")
-    parser.add_option("--suffix", "-s", action="store", dest="suffix",
-                      type="string", default="",
-                      help="Write mca file to suffixed file, default overwite")
-    parser.add_option("--remove-gaps", action="store_true", default=False,
-                      help="Remove gaps in Region Files between chunks "
-                      "(default : %default")
-    parser.add_option("--info", "-i", action="store_true", default=False,
-                      help="Gather informations on Region files (gaps between "
-                      "chunks, number of chunks generated, map of chunks "
-                      "generated colored by timestamp date of last "
-                      "modification")
+    parser.add_argument("--delete-chunk", dest="del_chunk_coords",
+                        type=lambda x: opt_chunk_delete(parser, x),
+                        help="Delete one or multiple chunk at provided"
+                        "coordinates. A single chunk coordinate is written as "
+                        "X0xZ0 where X0 and Z0 are integers. Multiple chunk "
+                        "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
+    parser.add_argument("--del-chunk-at-block", dest="del_chunk_blk_coords",
+                        type=lambda x: opt_chunk_delete(parser, x),
+                        help="Delete one or multiple chunk at provided block "
+                        "coordinates. A single chunk coordinate is written as "
+                        "X0xZ0 where X0 and Z0 are integers. Multiple blocks "
+                        "coordinates are separated by comma (eg : X0xZ0,X1xZ1)")
+    parser.add_argument("--delete-zone", dest="del_zone_coords",
+                        type=lambda x: opt_zone_delete(parser, x),
+                        help="Delete zone in rectangle specified by the chunks "
+                        "coordinates of the two opposite corners. Coords of "
+                        "opposite chunks are separated by an underscore (eg : "
+                        "X0xZ0_X1xZ1). "
+                        "Multiple zones are separated by a comma.")
+    parser.add_argument("--del-zone-between-blocks", dest="del_zone_blk_coords",
+                        type=lambda x: opt_zone_delete(parser, x),
+                        help="Delete zone in rectangle specified by the blocks "
+                        "coordinates of the two opposite corners. Coords of "
+                        "opposite blocks are separated by an underscore (eg : "
+                        "X0xZ0_X1xZ1). "
+                        "Multiple zones are separated by a comma.")
+    parser.add_argument("--dimension", action="store", dest="dimension",
+                        choices=World.dimensions,
+                        type=str, default="overworld",
+                        help="Specify dimension to work on")
+    parser.add_argument("--suffix", "-s", action="store", dest="suffix",
+                        type=str, default="",
+                        help="Write mca file to suffixed file, default overwite")
+    parser.add_argument("--remove-gaps", action="store_true", default=False,
+                        help="Remove gaps in Region Files between chunks")
+    parser.add_argument("--info", "-i", action="store_true", default=False,
+                        help="Gather informations on Region files (gaps between "
+                        "chunks, number of chunks generated, map of chunks "
+                        "generated colored by timestamp date of last "
+                        "modification")
 
-    (options, args) = parser.parse_args()
-    print options
+    args = parser.parse_args()
+    print args
     sys.exit(0)
 
 if __name__ == "__main__":
