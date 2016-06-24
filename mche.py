@@ -555,7 +555,9 @@ def opt_zone_delete(option, opt_str, value, parser):
 def main():
     parser = OptionParser()
     parser.add_option("-d", "--debug", action="store_true", dest="debug",
-                      help="Enable debug trace in log file", default=False)
+                      help="Enable debug trace in log file "
+                      "(default : %default)",
+                      default=False)
     parser.add_option("--delete-chunk", action="callback",
                       callback=opt_chunk_delete, type="string", nargs=1,
                       dest="del_chunk_coords",
@@ -586,9 +588,23 @@ def main():
                       "opposite blocks are separated by an underscore (eg : "
                       "X0xZ0_X1xZ1). "
                       "Multiple zones are separated by a comma.")
+    parser.add_option("--dimension", action="store", dest="dimension",
+                      type="string", default="overworld",
+                      help="Specify dimension to work on (default : %default)")
+    parser.add_option("--suffix", "-s", action="store", dest="suffix",
+                      type="string", default="",
+                      help="Write mca file to suffixed file, default overwite")
+    parser.add_option("--remove-gaps", action="store_true", default=False,
+                      help="Remove gaps in Region Files between chunks "
+                      "(default : %default")
+    parser.add_option("--info", "-i", action="store_true", default=False,
+                      help="Gather informations on Region files (gaps between "
+                      "chunks, number of chunks generated, map of chunks "
+                      "generated colored by timestamp date of last "
+                      "modification")
+
     (options, args) = parser.parse_args()
     print options
-    print args
     sys.exit(0)
 
 if __name__ == "__main__":
