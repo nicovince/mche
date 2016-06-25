@@ -352,12 +352,19 @@ class World:
         elif dim == "theend":
             return self.get_theend_dir()
 
+    def get_region_name(self, block_x, block_z):
+        """
+        Return region name for block coordinates
+        """
+        region = self.get_region_coords(block_x, block_z)
+        filename = "r.%d.%d.mca" % (region[0], region[1])
+        return filename
+
     def get_region_file(self, dim, block_x, block_z):
         """
         Return region filename for block coordinates of given dimension
         """
-        region = self.get_region_coords(block_x, block_z)
-        filename = "r.%d.%d.mca" % (region[0], region[1])
+        filename = self.get_region_name(block_x, block_z)
 
         region_file = os.path.join(self.get_dim_dir(dim), filename)
         return region_file
@@ -387,6 +394,26 @@ class World:
         chunk_2 = (region_x * 32 + 31, region_z * 32 + 31)
         return list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
                                       range(chunk_1[1], chunk_2[1]+1)))
+
+    def get_coords_by_region(self, blk_coords):
+        """
+        Sort coords by region
+
+        blk_coords : list of blocks coordinates
+
+        Return dictionnary of list of coords indexed by region name which
+        contains the coordinates in the value
+        """
+        ret = dict()
+        for (x, z) in blk_coords:
+            region_name = self.get_region_name(x, z)
+            if not ret.has_key(region_name):
+                ret[region_name] = [(x, z)]
+            else:
+                ret[region_name].append((x, z))
+        return ret
+
+
 
     def delete_chunk_block_coords(self, dim, x, z, ext=None):
         """
@@ -462,6 +489,12 @@ class World:
                 region.delete_chunk(c_x % 32, c_z % 32)
             # Save region
             region.write(region_filename + ext)
+
+
+class Mche:
+    def __init__(self, opts):
+        self.__dict__ = opts
+        self.world = World(self.world_name)
 
 
 # TODO
@@ -555,7 +588,7 @@ def main():
     parser = argparse.ArgumentParser(description="Manipulate Region Files of "
                                      "Minecraft World",
                                      formatter_class=formatter_class)
-    parser.add_argument("world", help="World Folder")
+    parser.add_argument("world_name", help="World Folder")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Enable debug trace in log file",
                         default=False)
@@ -606,11 +639,17 @@ def main():
 
     args = parser.parse_args()
     print args
+
+    # Setup logger
+    logging.basicConfig(filename="mche.log")
+    logging.getLogger().addHandler(logging.StreamHandler())
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    mche = Mche(args.__dict__)
     sys.exit(0)
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="mche.log", level=logging.DEBUG)
-    logging.getLogger().addHandler(logging.StreamHandler())
     main()
 
     # world = World("/home/pi/mc/juco")

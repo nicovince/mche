@@ -76,7 +76,6 @@ def test_chunk_eq():
 
 def test_delete_chunk():
     """Chunk Deletion Test"""
-    # TODO: automate testing
     rf_name = "/home/pi/mc/juco/region/r.3.3.mca"
     mche_ext = ".mche"
     rf_mche_name = rf_name + mche_ext
@@ -220,13 +219,36 @@ def test_zone_from_str():
 
     return errors == 0
 
+
+def test_coords_by_region():
+    """Test Coordinates sorted by region"""
+    errors = 0
+    world = mche.World("/home/pi/mc/juco/")
+    coords = world.get_coords_by_region([[0, 0], [12, 511], [511, 511],
+                                         [-1, -1], [-512, -512],
+                                         [0, -1], [511, -512],
+                                         [-1, 0], [-512, 511]])
+    for region, blk_coords in coords.items():
+        (r_x, r_z) = re.findall("-?\d+", region)
+        (r_x, r_z) = (int(r_x), int(r_z))
+        for (x, z) in blk_coords:
+            blk_ok = ((x < (r_x+1)*512) and (x >= r_x*512) and
+                      (z < (r_z+1)*512) and (z >= r_z*512))
+            if not log_tp(blk_ok, "Block (%d, %d) belongs to %s" % (x, z, region)):
+                errors += 1
+
+
+    return errors == 0
+
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.ERROR)
 
-    log_test(test_chunk_eq)
-    log_test(test_region_eq)
-    log_test(test_delete_chunk)
-    log_test(test_coords_from_str)
-    log_test(test_zone_from_str)
+    #log_test(test_chunk_eq)
+    #log_test(test_region_eq)
+    #log_test(test_delete_chunk)
+    #log_test(test_coords_from_str)
+    #log_test(test_zone_from_str)
+    log_test(test_coords_by_region)
     # log_test(test_read_write) # Long test
