@@ -377,7 +377,8 @@ class World:
         region_z = (block_z >> 4) >> 5
         return (region_x, region_z)
 
-    def get_chunk_coords(self, block_x, block_z):
+    @staticmethod
+    def get_chunk_coords(block_x, block_z):
         """
         Return tuple of chunk coordinates containing specified block
         """
@@ -448,8 +449,8 @@ class World:
         block_z2 = max(block_1[1], block_2[1])
         region_1 = self.get_region_coords(block_x1, block_z1)
         region_2 = self.get_region_coords(block_x2, block_z2)
-        chunk_1 = self.get_chunk_coords(block_x1, block_z1)
-        chunk_2 = self.get_chunk_coords(block_x2, block_z2)
+        chunk_1 = World.get_chunk_coords(block_x1, block_z1)
+        chunk_2 = World.get_chunk_coords(block_x2, block_z2)
 
         # Get regions which are included in zone
         regions = itertools.product(range(region_1[0], region_2[0]+1),
@@ -495,6 +496,50 @@ class Mche:
     def __init__(self, opts):
         self.__dict__ = opts
         self.world = World(self.world_name)
+        coords = self.get_delete_coords()
+
+    @staticmethod
+    def order_zone(coords1, coords2):
+        coords_x1 = min(coords1[0], coords2[0])
+        coords_z1 = min(coords1[1], coords2[1])
+        coords_x2 = max(coords1[0], coords2[0])
+        coords_z2 = max(coords1[1], coords2[1])
+        return ((coords_x1, coords_z1), (coords_x2, coords_z2))
+
+    def get_delete_coords(self):
+        """Build list of chunks coordinates that needs to be deleted"""
+        # adds chunks given by chunks coords
+        if self.del_chunk_coords is not None:
+            ret = list(self.del_chunk_coords)
+        else:
+            ret = list()
+
+        # adds chunks given by block coords
+        if self.del_chunk_blk_coords is not None:
+            for (blk_x, blk_z) in self.del_chunk_blk_coords:
+                chunk_coords = World.get_chunk_coords(blk_x, blk_z)
+                ret.append(chunk_coords)
+
+        # adds chunks given by chunks zones
+        if self.del_zone_coords is not None:
+            for zone in self.del_zone_coords:
+                (chunk_1, chunk_2) = Mche.order_zone(*zone)
+                chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
+                                                range(chunk_1[1], chunk_2[1]+1)))
+                ret.extend(chunks)
+
+        # Adds chunks given by blocks zones
+        if self.del_zone_blk_coords is not None:
+            print "here"
+            for zone in self.del_zone_blk_coords:
+                (coords_1, coords_2) = Mche.order_zone(*zone)
+                chunk_1 = World.get_chunk_coords(*coords_1)
+                chunk_2 = World.get_chunk_coords(*coords_2)
+                chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
+                                                range(chunk_1[1], chunk_2[1]+1)))
+                ret.extend(chunks)
+
+        return list(set(ret))
 
 
 # TODO
@@ -525,7 +570,7 @@ def get_coords_from_str(s):
         assert len(coords_s) == 2, "Coords should have two values, %s has %d" \
             % (c_s, len(coords_s))
         # Cast from string to integers
-        coords = [int(c) for c in coords_s]
+        coords = tuple([int(c) for c in coords_s])
         ret.append(coords)
     return ret
 
