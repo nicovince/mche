@@ -408,13 +408,11 @@ class World:
         ret = dict()
         for (x, z) in blk_coords:
             region_name = self.get_region_name(x, z)
-            if not ret.has_key(region_name):
+            if region_name in ret:
                 ret[region_name] = [(x, z)]
             else:
                 ret[region_name].append((x, z))
         return ret
-
-
 
     def delete_chunk_block_coords(self, dim, x, z, ext=None):
         """
@@ -500,6 +498,7 @@ class Mche:
 
     @staticmethod
     def order_zone(coords1, coords2):
+        """Return tuple of coords ordered (top-left, bottom-right)"""
         coords_x1 = min(coords1[0], coords2[0])
         coords_z1 = min(coords1[1], coords2[1])
         coords_x2 = max(coords1[0], coords2[0])
@@ -524,8 +523,10 @@ class Mche:
         if self.del_zone_coords is not None:
             for zone in self.del_zone_coords:
                 (chunk_1, chunk_2) = Mche.order_zone(*zone)
-                chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
-                                                range(chunk_1[1], chunk_2[1]+1)))
+                chunks = list(itertools.product(range(chunk_1[0],
+                                                      chunk_2[0]+1),
+                                                range(chunk_1[1],
+                                                      chunk_2[1]+1)))
                 ret.extend(chunks)
 
         # Adds chunks given by blocks zones
@@ -535,10 +536,13 @@ class Mche:
                 (coords_1, coords_2) = Mche.order_zone(*zone)
                 chunk_1 = World.get_chunk_coords(*coords_1)
                 chunk_2 = World.get_chunk_coords(*coords_2)
-                chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
-                                                range(chunk_1[1], chunk_2[1]+1)))
+                chunks = list(itertools.product(range(chunk_1[0],
+                                                      chunk_2[0]+1),
+                                                range(chunk_1[1],
+                                                      chunk_2[1]+1)))
                 ret.extend(chunks)
 
+        # Uniquify coords to remove overlaps
         return list(set(ret))
 
 

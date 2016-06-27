@@ -234,9 +234,9 @@ def test_coords_by_region():
         for (x, z) in blk_coords:
             blk_ok = ((x < (r_x+1)*512) and (x >= r_x*512) and
                       (z < (r_z+1)*512) and (z >= r_z*512))
-            if not log_tp(blk_ok, "Block (%d, %d) belongs to %s" % (x, z, region)):
+            if not log_tp(blk_ok, "Block (%d, %d) belongs to %s"
+                          % (x, z, region)):
                 errors += 1
-
 
     return errors == 0
 
