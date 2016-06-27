@@ -271,8 +271,10 @@ class RegionFile:
         if deleted_chunk.offset == 0:
             logging.debug("chunk (%d, %d) has not been generated" % (x, z))
             return
-        logging.debug("delete relative chunk (%d, %d) in region %s"
-                      % (x, z, os.path.basename(self.region_filename)))
+        (abs_x, abs_z) = self.get_absolute_chunk_coords(x, z)
+        logging.debug("delete relative chunk (%d, %d) for absolute chunk "
+                      "(%d, %d) in region %s" % (x, z, abs_x, abs_z,
+                         os.path.basename(self.region_filename)))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
                          if c.offset > deleted_chunk.offset]
@@ -295,6 +297,12 @@ class RegionFile:
         Get relative chunk coords from block's coordinates
         """
         return self.get_relative_chunk_coords(block_x >> 4, block_z >> 4)
+
+    def get_absolute_chunk_coords(self, chunk_rel_x, chunk_rel_z):
+        """
+        Get absolute chunk coords for relative coordinates
+        """
+        return (self.x * 32 + chunk_rel_x, self.z * 32 + chunk_rel_z)
 
 
 class World:
@@ -414,87 +422,52 @@ class World:
                 ret[region_name].append((x, z))
         return ret
 
-    def delete_chunk_block_coords(self, dim, x, z, ext=None):
+    def get_chunks_coords_by_region(self, chunks_coords):
         """
-        Delete chunk at block coordinates for given dimension
+        Sort chunks coords by region.
 
-        Region file is overwritten unless ext is provided, in which case it is
-        used to suffix region file
+        chunks_coords : list of chunks coordinates
+
+        Return dictionary  of coords indexed by region name to which they
+        belong.
+        """
+        ret = dict()
+        for (x, z) in chunks_coords:
+            region_name = self.get_region_name(x*16, z*16)
+            if not region_name in ret:
+                ret[region_name] = [(x, z)]
+            else:
+                ret[region_name].append((x, z))
+        return ret
+
+    def delete_chunks(self, dim, coords, ext=None):
+        """
+        Delete list of chunks at chunks coordinates for given dimension
+
+        Region files are saved using ext suffix
         """
         if ext is None:
             ext = ""
         assert dim in self.dimensions, "Dimension %s is not valid" % dim
-        region_filename = self.get_region_file(dim, x, z)
-        logging.info("Delete chunk containing block (%d, %d) in region %s"
-                     % (x, z, os.path.basename(region_filename)))
-        rf = RegionFile(region_filename)
-        rf.read()
-        rf.delete_chunk(*rf.get_chunk_coords(x, z))
-        rf.write(region_filename + ext)
+        chunks_by_region = self.get_chunks_coords_by_region(coords)
 
-    def delete_zone(self, dim, block_1, block_2, ext=None):
-        """
-        Delete chunks in zone delimited by two points
-
-        block_1 and block_2 are tuples of (x, z) coordinates
-        """
-        if ext is None:
-            ext = ""
-        # set block1 as top-left, block2 as bottom-right
-        block_x1 = min(block_1[0], block_2[0])
-        block_z1 = min(block_1[1], block_2[1])
-        block_x2 = max(block_1[0], block_2[0])
-        block_z2 = max(block_1[1], block_2[1])
-        region_1 = self.get_region_coords(block_x1, block_z1)
-        region_2 = self.get_region_coords(block_x2, block_z2)
-        chunk_1 = World.get_chunk_coords(block_x1, block_z1)
-        chunk_2 = World.get_chunk_coords(block_x2, block_z2)
-
-        # Get regions which are included in zone
-        regions = itertools.product(range(region_1[0], region_2[0]+1),
-                                    range(region_1[1], region_2[1]+1))
-        # Get list of chunks in zone
-        chunks = list(itertools.product(range(chunk_1[0], chunk_2[0]+1),
-                                        range(chunk_1[1], chunk_2[1]+1)))
-        logging.debug("Remove chunks between blocks (%d, %d) and (%d, %d)" %
-                      (block_x1, block_z1, block_x2, block_z2))
-        logging.debug("First Region : (%d, %d)" % (region_1[0], region_1[1]))
-        logging.debug("Last Region : (%d, %d)" % (region_2[0], region_2[1]))
-        logging.debug("list of chunks : %s" % chunks)
-        logging.debug("chunk_1 : %s" % str(chunk_1))
-        logging.debug("chunk_2 : %s" % str(chunk_2))
-
-        for (r_x, r_z) in regions:
-            region_filename = self.get_region_file(dim, r_x*512, r_z*512)
-            # Skip non existing regions
-            if not os.path.exists(region_filename):
-                continue
-
-            logging.debug("Process %s to remove chunks" % region_filename)
-            region = RegionFile(region_filename)
-            # List of chunks in curent regions
-            region_chunks = World.get_chunks_from_region(r_x, r_z)
-            # List of chunks that needs to be deleted
-            prune_chunks = list(set(region_chunks).intersection(chunks))
-            logging.debug("remove chunks %s from %s"
-                          % (str(prune_chunks),
-                             os.path.basename(region_filename)))
-            assert len(prune_chunks) > 0,\
-                "Region %s is candidate but no chunks to delete"
-            # Read region and delete chunks
-            region.read()
-            for (c_x, c_z) in prune_chunks:
-                logging.debug("Remove chunk (%d, %d)" % (c_x, c_z))
-                region.delete_chunk(c_x % 32, c_z % 32)
-            # Save region
-            region.write(region_filename + ext)
+        for r, coords in chunks_by_region.items():
+            rf_name = os.path.join(self.get_dim_dir(dim), r)
+            rf = RegionFile(rf_name)
+            rf.read()
+            for (x, z) in coords:
+                rf.delete_chunk(*rf.get_relative_chunk_coords(x, z))
+            rf.write(rf_name + ext)
 
 
 class Mche:
     def __init__(self, opts):
         self.__dict__ = opts
         self.world = World(self.world_name)
+
+    def run(self):
         coords = self.get_delete_coords()
+        self.world.delete_chunks(self.dimension, coords, self.suffix)
 
     @staticmethod
     def order_zone(coords1, coords2):
@@ -544,6 +517,7 @@ class Mche:
 
         # Uniquify coords to remove overlaps
         return list(set(ret))
+
 
 
 # TODO
@@ -696,11 +670,9 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     mche = Mche(args.__dict__)
+    mche.run()
     sys.exit(0)
 
 if __name__ == "__main__":
     main()
 
-    # world = World("/home/pi/mc/juco")
-    world = World("/home/nicolas/MinecraftServer/Creatif/juco")
-    world.delete_zone("overworld", (393, -10), (405, -20))
