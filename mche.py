@@ -446,6 +446,7 @@ class World:
 
         Region files are saved using ext suffix
         """
+        logging.debug("Remove chunks " + str(coords) + " from " + dim)
         if ext is None:
             ext = ""
         assert dim in self.dimensions, "Dimension %s is not valid" % dim
