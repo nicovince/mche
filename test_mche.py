@@ -38,11 +38,9 @@ def test_read_write():
         f = os.path.join(path, e)
         if re.match("r.-?\d+\.-?\d+\.mca$", e):
             rf = mche.RegionFile(f)
-            rf.read()
             mche_file = f + ".mche"
             rf.write(mche_file)
             rf_written = mche.RegionFile(mche_file)
-            rf_written.read()
             if rf != rf_written:
                 diff += 1
             os.remove(mche_file)
@@ -55,8 +53,6 @@ def test_chunk_eq():
     filename = "/home/pi/mc/juco/region/r.0.0.mca"
     rf = mche.RegionFile(filename)
     rf_bis = mche.RegionFile(filename)
-    rf_bis.read()
-    rf.read()
     c1 = rf.chunks[0]
     c2 = rf.chunks[1]
     c1_bis = rf_bis.chunks[0]
@@ -80,18 +76,15 @@ def test_delete_chunk():
     mche_ext = ".mche"
     rf_mche_name = rf_name + mche_ext
     rf = mche.RegionFile(rf_name)
-    rf.read()
     # 3, 11 is the last chunk stored in the file
     # remove it
     rf.delete_chunk(3, 11)
     rf.write(rf_mche_name)
     # Read Region file with chunk removed
     rf_mche = mche.RegionFile(rf_mche_name)
-    rf_mche.read()
 
     # Re-read original region file
     rf = mche.RegionFile(rf_name)
-    rf.read()
 
     # Compare
     chunks_preserved = True
@@ -131,11 +124,8 @@ def test_region_eq():
     filename = "/home/pi/mc/juco/region/r.0.0.mca"
     filename2 = "/home/pi/mc/juco/region/r.0.1.mca"
     rf = mche.RegionFile(filename)
-    rf.read()
     rf2 = mche.RegionFile(filename2)
-    rf2.read()
     rf_bis = mche.RegionFile(filename)
-    rf_bis.read()
 
     if not log_tp(rf != rf2, "__eq__ on different region files"):
         errors += 1
@@ -240,15 +230,34 @@ def test_coords_by_region():
 
     return errors == 0
 
+def test_rm_gaps():
+    """Test Removing Gaps from Region File"""
+    errors = 0
+    filename = "/home/pi/mc/juco/region/r.0.0.mca"
+    rf = mche.RegionFile(filename)
+    rf.remove_gaps()
+    nogaps_file = filename + ".nogaps"
+    rf.write(nogaps_file)
+    rf_orig = mche.RegionFile(filename)
+    rf_nogaps = mche.RegionFile(nogaps_file)
+    if not log_tp(rf_orig == rf_nogaps,
+                  "Region file without gaps equivalent to original"):
+        print rf_orig
+        print rf_nogaps
+
+        errors += 1
+    return errors == 0
+
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
-                        level=logging.ERROR)
+                        level=logging.DEBUG)
 
     #log_test(test_chunk_eq)
     #log_test(test_region_eq)
     #log_test(test_delete_chunk)
     #log_test(test_coords_from_str)
     #log_test(test_zone_from_str)
-    log_test(test_coords_by_region)
+    #log_test(test_coords_by_region)
+    log_test(test_rm_gaps)
     # log_test(test_read_write) # Long test

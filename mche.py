@@ -84,6 +84,7 @@ class RegionFile:
         self.chunks = None
         self.location_field = None
         self.timestamps_field = None
+        self.read()
 
     def __eq__(self, other):
         """
@@ -316,7 +317,7 @@ class RegionFile:
 
             # set next_offset to be after current chunk
             next_offset = c.offset + c.sector_count
-        print "saved %d bytes" % gap * 4096
+        #print "saved %d bytes" % gap * 4096
 
 
 class World:
@@ -430,7 +431,7 @@ class World:
         ret = dict()
         for (x, z) in blk_coords:
             region_name = self.get_region_name(x, z)
-            if region_name in ret:
+            if not region_name in ret:
                 ret[region_name] = [(x, z)]
             else:
                 ret[region_name].append((x, z))
@@ -469,7 +470,6 @@ class World:
         for r, coords in chunks_by_region.items():
             rf_name = os.path.join(self.get_dim_dir(dim), r)
             rf = RegionFile(rf_name)
-            rf.read()
             for (x, z) in coords:
                 rf.delete_chunk(*rf.get_relative_chunk_coords(x, z))
             rf.write(rf_name + ext)
