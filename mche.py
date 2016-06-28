@@ -288,7 +288,7 @@ class RegionFile:
 
     def get_relative_chunk_coords(self, chunk_x, chunk_z):
         """
-        Get relative coords for chunk's absolutescoordinates
+        Get relative coords for chunk's absolutes coordinates
         """
         return (chunk_x % 32, chunk_z % 32)
 
@@ -303,6 +303,20 @@ class RegionFile:
         Get absolute chunk coords for relative coordinates
         """
         return (self.x * 32 + chunk_rel_x, self.z * 32 + chunk_rel_z)
+
+    def remove_gaps(self):
+        """Remove gaps between chunks"""
+        # offset of next chunk if no gap, start at 2 because of 8kB header
+        next_offset = 2
+        gap = 0
+        for c in sorted(self.chunks, key=lambda x: x.offset):
+            if next_offset != c.offset:
+                c.offset = next_offset
+                gap = next_offset - c.offset
+
+            # set next_offset to be after current chunk
+            next_offset = c.offset + c.sector_count
+        print "saved %d bytes" % gap * 4096
 
 
 class World:
