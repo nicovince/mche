@@ -38,9 +38,18 @@ class Chunk:
 
     def __eq__(self, other):
         """
-        Compare all fields of Chunk
+        Compare coordinates, length, timestamp, sector count and chunk_data
+        fields
+
+        offset is ommited because it can moved when removing gaps
         """
-        return self.__dict__ == other.__dict__
+        #return self.__dict__ == other.__dict__
+        return self.x == other.x and \
+            self.z == other.z and \
+            self.sector_count == other.sector_count and \
+            self.timestamp == other.timestamp and \
+            self.chunk_data == other.chunk_data and \
+            self.length == other.length
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -306,18 +315,53 @@ class RegionFile:
         return (self.x * 32 + chunk_rel_x, self.z * 32 + chunk_rel_z)
 
     def remove_gaps(self):
-        """Remove gaps between chunks"""
+        """
+        Remove gaps between chunks
+
+        Return number of bytes saved
+        """
         # offset of next chunk if no gap, start at 2 because of 8kB header
         next_offset = 2
         gap = 0
         for c in sorted(self.chunks, key=lambda x: x.offset):
+            # Save offset of next chunk before removing gaps
+            # used to display space saved
+            gap_offset = c.offset + c.sector_count
             if next_offset != c.offset:
+                logging.debug("Remove gap : chunk (%d, %d) @offset : "
+                              "%d moved to %d" %
+                              (c.x, c.z, c.offset, next_offset))
                 c.offset = next_offset
                 gap = next_offset - c.offset
-
             # set next_offset to be after current chunk
             next_offset = c.offset + c.sector_count
-        #print "saved %d bytes" % gap * 4096
+        bytes_saved = (gap_offset - next_offset)*4096
+        logging.info("Saved %d bytes by removing gaps on %s" %
+                     (bytes_saved, self.region_filename))
+        return bytes_saved
+
+    def diff(self, other):
+        """
+        Print differences between two region files
+
+        Return true when there is a diff
+        """
+        is_diff = False
+        if self.x != other.x:
+            is_diff = True
+            print "x coords differs : %d - %d" % (self.x, other.x)
+        if self.z != other.z:
+            is_diff = True
+            print "z coords differs : %d - %d" % (self.z, other.z)
+        for idx in range(1024):
+            if self.chunks[idx] != other.chunks[idx]:
+                is_diff = True
+                print("chunk %d differs : (%d, %d) - (%d, %d)" %
+                      (idx, self.chunks[idx].x, self.chunks[idx].z,
+                       other.chunks[idx].x, other.chunks[idx].z))
+                print repr(self.chunks[idx])
+                print repr(other.chunks[idx])
+        return is_diff
 
 
 class World:

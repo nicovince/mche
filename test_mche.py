@@ -6,6 +6,7 @@ import os
 import re
 import sys
 
+errors_cnt = 0
 
 def log_tp(test, name):
     """
@@ -18,6 +19,7 @@ def log_tp(test, name):
         print "TP OK : %s" % name
     else:
         print "TP KO : %s" % name
+        errors_cnt += 1
     return test
 
 
@@ -157,7 +159,7 @@ def test_coords_from_str():
     if not log_tp(coords[0][0] == 5 and coords[0][1] == 3, "Parse 5x3"):
         errors += 1
 
-    test_coords = [[5, 10], [12, 13], [-5, -2], [-7, 0], [0, -9]]
+    test_coords = [(5, 10), (12, 13), (-5, -2), (-7, 0), (0, -9)]
     test_string = ""
     for (x, z) in test_coords:
         test_string += "%dx%d," % (x, z)
@@ -196,12 +198,15 @@ def test_zone_from_str():
     """String Zone Parser"""
     errors = 0
     zones = "12x34_56x72"
-    zones_exp = [[[12, 34], [56, 72]]]
-    if not log_tp(mche.get_zones_from_str(zones) == zones_exp,
+    zones_exp = [[(12, 34), (56, 72)]]
+    zones_test = mche.get_zones_from_str(zones)
+    if not log_tp(zones_test == zones_exp,
                   "Parse Zone %s" % zones):
+        print zones_test
+        print zones_exp
         errors += 1
 
-    zones_exp = [[[-1, 0], [3, -5]], [[-20, -32], [45, -12]]]
+    zones_exp = [[(-1, 0), (3, -5)], [(-20, -32), (45, -12)]]
     zones = mche.get_str_from_zones(zones_exp)
     if not log_tp(mche.get_zones_from_str(zones) == zones_exp,
                   "Parse zones %s" % zones):
@@ -242,8 +247,7 @@ def test_rm_gaps():
     rf_nogaps = mche.RegionFile(nogaps_file)
     if not log_tp(rf_orig == rf_nogaps,
                   "Region file without gaps equivalent to original"):
-        print rf_orig
-        print rf_nogaps
+        rf_orig.diff(rf_nogaps)
 
         errors += 1
     return errors == 0
@@ -253,11 +257,13 @@ if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    #log_test(test_chunk_eq)
-    #log_test(test_region_eq)
-    #log_test(test_delete_chunk)
-    #log_test(test_coords_from_str)
-    #log_test(test_zone_from_str)
-    #log_test(test_coords_by_region)
+    log_test(test_chunk_eq)
+    log_test(test_region_eq)
+    log_test(test_delete_chunk)
+    log_test(test_coords_from_str)
+    log_test(test_zone_from_str)
+    log_test(test_coords_by_region)
     log_test(test_rm_gaps)
-    # log_test(test_read_write) # Long test
+    log_test(test_read_write) # Long test
+    if errors_cnt != 0:
+        sys.exit(1)
