@@ -71,8 +71,8 @@ class Chunk:
 
     def is_generated(self):
         """Return True if chunk has been generated"""
-        return self.offset == 0 and self.sector_count == 0 \
-            and self.timestamp == 0
+        return not (self.offset == 0 and self.sector_count == 0 
+                    and self.timestamp == 0)
 
 
 class RegionFile:
@@ -86,8 +86,6 @@ class RegionFile:
         Initialize instance with region filename attribute
         """
         self.region_filename = filename
-        if not os.path.exists(filename):
-            raise IOError
         self.x, self.z = self.get_region_coords()
         self.has_gap = False
         self.chunks = None
@@ -323,7 +321,11 @@ class RegionFile:
         # offset of next chunk if no gap, start at 2 because of 8kB header
         next_offset = 2
         gap = 0
-        for c in sorted(self.chunks, key=lambda x: x.offset):
+        # get list of generated chunks in region
+        chunks = [ c for c in sorted(self.chunks, key=lambda x: x.offset)
+                  if c.is_generated() ]
+        assert (len(chunks) > 0)
+        for c in chunks:
             # Save offset of next chunk before removing gaps
             # used to display space saved
             gap_offset = c.offset + c.sector_count
@@ -418,6 +420,35 @@ class World:
             return self.get_nether_dir()
         elif dim == "theend":
             return self.get_theend_dir()
+
+    def get_region_files(self, dim):
+        """Return list of region files for dimension"""
+        path = self.get_dim_dir(dim)
+        region_files = [ os.path.join(path, e) for e in os.listdir(path)
+                        if re.match("r.-?\d+\.-?\d+\.mca$", e)]
+        return region_files
+
+    def remove_gaps(self, dim, suffix=None):
+        """
+        Remove gaps for region files in given dimension
+
+        Files are saved with suffix name
+
+        Return space saved
+        """
+        if suffix == None:
+            suffix = ""
+        files = self.get_region_files(dim)
+        # space saved by removing gaps in bytes
+        space = 0
+        for f in files:
+            rf = RegionFile(f)
+            if rf.has_gap:
+                space += rf.remove_gaps()
+                rf.write(f + suffix)
+        logging.info("Saved %d bytes by removing gaps in %s region files"
+                     % (space, dim))
+        return space
 
     def get_region_name(self, block_x, block_z):
         """
@@ -526,7 +557,10 @@ class Mche:
 
     def run(self):
         coords = self.get_delete_coords()
-        self.world.delete_chunks(self.dimension, coords, self.suffix)
+        if len(coords) > 0:
+            self.world.delete_chunks(self.dimension, coords, self.suffix)
+        if self.remove_gaps:
+            world.remove_gaps()
 
     @staticmethod
     def order_zone(coords1, coords2):
@@ -720,7 +754,6 @@ def main():
                         "modification")
 
     args = parser.parse_args()
-    print args
 
     # Setup logger
     logging.basicConfig(filename="mche.log")

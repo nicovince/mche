@@ -15,6 +15,7 @@ def log_tp(test, name):
     test : true when test is successful
     name : Name of the test to log
     """
+    global errors_cnt
     if test:
         print "TP OK : %s" % name
     else:
@@ -252,6 +253,30 @@ def test_rm_gaps():
         errors += 1
     return errors == 0
 
+def test_rm_dim_gaps():
+    """Test Removing Gaps from Dimension Region files"""
+    errors = 0
+    path = "/home/pi/mc/juco"
+    ow_path = os.path.join(path, "region")
+    world = mche.World(path)
+    world.remove_gaps("overworld", ".nogaps")
+    nogaps_files = [ os.path.join(ow_path, f) for f in os.listdir(ow_path)
+                    if re.match("r.-?\d+\.-?\d+\.mca.nogaps$", f) ]
+    mismatch = []
+    for f in nogaps_files:
+        orig_f = re.sub(".nogaps", "", f)
+        rf_nogaps = mche.RegionFile(f)
+        rf_orig = mche.RegionFile(orig_f)
+        if rf_orig != rf_nogaps:
+            mismatch.append((rf_orig, rf_nogaps))
+    if not log_tp(len(mismatch) == 0,
+                  "Region Files without gaps matches originals"):
+        print "Mismatches on " + str(mismatch)
+        errors += 1
+    return errors == 0
+
+
+
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
@@ -264,6 +289,8 @@ if __name__ == "__main__":
     log_test(test_zone_from_str)
     log_test(test_coords_by_region)
     log_test(test_rm_gaps)
+    log_test(test_rm_dim_gaps)
     log_test(test_read_write) # Long test
+
     if errors_cnt != 0:
         sys.exit(1)
