@@ -107,7 +107,7 @@ def test_delete_chunk():
                     log_tp(chunks_preserved,
                            "Chunk (%d, %d) shall be preserved" % (x, z))
             else:
-                if not c2.is_generated():
+                if c2.is_generated():
                     chunk_deleted = False
                     errors += 1
                 log_tp(chunk_deleted, "Chunk (%d, %d) shall be cleared"
