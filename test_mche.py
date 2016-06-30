@@ -10,6 +10,7 @@ import sys
 
 errors_cnt = 0
 
+
 def log_tp(test, name):
     """
     Log Test point
@@ -83,6 +84,7 @@ def test_delete_chunk():
     rf_mche_name = rf_name + mche_ext
     rf = mche.RegionFile(rf_name)
 
+    # Check exception raised if chunk not present in region
     e = None
     try:
         rf.delete_chunk(0, 0)
@@ -250,6 +252,7 @@ def test_coords_by_region():
 
     return errors == 0
 
+
 def test_rm_gaps():
     """Test Removing Gaps from Region File"""
     errors = 0
@@ -267,6 +270,7 @@ def test_rm_gaps():
         errors += 1
     return errors == 0
 
+
 def test_rm_dim_gaps():
     """Test Removing Gaps from Dimension Region files"""
     errors = 0
@@ -274,8 +278,8 @@ def test_rm_dim_gaps():
     ow_path = os.path.join(path, "region")
     world = mche.World(path)
     world.remove_gaps("overworld", ".nogaps")
-    nogaps_files = [ os.path.join(ow_path, f) for f in os.listdir(ow_path)
-                    if re.match("r.-?\d+\.-?\d+\.mca.nogaps$", f) ]
+    nogaps_files = [os.path.join(ow_path, f) for f in os.listdir(ow_path)
+                    if re.match("r.-?\d+\.-?\d+\.mca.nogaps$", f)]
     mismatch = []
     for f in nogaps_files:
         orig_f = re.sub(".nogaps", "", f)

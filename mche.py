@@ -43,7 +43,6 @@ class Chunk:
 
         offset is ommited because it can moved when removing gaps
         """
-        #return self.__dict__ == other.__dict__
         return self.x == other.x and \
             self.z == other.z and \
             self.sector_count == other.sector_count and \
@@ -71,8 +70,8 @@ class Chunk:
 
     def is_generated(self):
         """Return True if chunk has been generated"""
-        return not (self.offset == 0 and self.sector_count == 0 
-                    and self.timestamp == 0)
+        return not (self.offset == 0 and self.sector_count == 0 and
+                    self.timestamp == 0)
 
 
 class RegionFile:
@@ -229,7 +228,6 @@ class RegionFile:
         return ((self.x*32 <= x) and (x < (self.x + 1)*32) and
                 (self.z*32 <= z) and (z < (self.z + 1)*32))
 
-
     def display_chunk_info(self, x, z):
         """
         Display chunks info of chunk coordinates (x,z)
@@ -296,9 +294,10 @@ class RegionFile:
             logging.debug("chunk (%d, %d) has not been generated" % (x, z))
             return
         (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
+        basename_rf = os.path.basename(self.region_filename)
         logging.debug("delete relative chunk (%d, %d) for absolute chunk "
                       "(%d, %d) in region %s" % (x_rel, z_rel, x, z,
-                         os.path.basename(self.region_filename)))
+                                                 basename_rf))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
                          if c.offset > deleted_chunk.offset]
@@ -338,8 +337,8 @@ class RegionFile:
         next_offset = 2
         gap = 0
         # get list of generated chunks in region
-        chunks = [ c for c in sorted(self.chunks, key=lambda x: x.offset)
-                  if c.is_generated() ]
+        chunks = [c for c in sorted(self.chunks, key=lambda x: x.offset)
+                  if c.is_generated()]
         assert (len(chunks) > 0)
         for c in chunks:
             # Save offset of next chunk before removing gaps
@@ -440,7 +439,7 @@ class World:
     def get_region_files(self, dim):
         """Return list of region files for dimension"""
         path = self.get_dim_dir(dim)
-        region_files = [ os.path.join(path, e) for e in os.listdir(path)
+        region_files = [os.path.join(path, e) for e in os.listdir(path)
                         if re.match("r.-?\d+\.-?\d+\.mca$", e)]
         return region_files
 
@@ -452,7 +451,7 @@ class World:
 
         Return space saved
         """
-        if suffix == None:
+        if suffix is None:
             suffix = ""
         files = self.get_region_files(dim)
         # space saved by removing gaps in bytes
@@ -522,7 +521,7 @@ class World:
         ret = dict()
         for (x, z) in blk_coords:
             region_name = self.get_region_name(x, z)
-            if not region_name in ret:
+            if region_name not in ret:
                 ret[region_name] = [(x, z)]
             else:
                 ret[region_name].append((x, z))
@@ -540,7 +539,7 @@ class World:
         ret = dict()
         for (x, z) in chunks_coords:
             region_name = self.get_region_name(x*16, z*16)
-            if not region_name in ret:
+            if region_name not in ret:
                 ret[region_name] = [(x, z)]
             else:
                 ret[region_name].append((x, z))
@@ -626,7 +625,6 @@ class Mche:
 
         # Uniquify coords to remove overlaps
         return list(set(ret))
-
 
 
 # TODO
@@ -783,4 +781,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
