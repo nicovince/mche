@@ -80,7 +80,7 @@ class RegionFile:
 
     Load them, prune a chunk, save to file
     """
-    def __init__(self, filename):
+    def __init__(self, filename, read=True):
         """
         Initialize instance with region filename attribute
         """
@@ -90,7 +90,8 @@ class RegionFile:
         self.chunks = None
         self.location_field = None
         self.timestamps_field = None
-        self.read()
+        if read:
+            self.read()
 
     def __eq__(self, other):
         """
@@ -118,6 +119,78 @@ class RegionFile:
         return os.path.basename(self.region_filename) + " (%d, %d) - (%d, %d)"\
             % (start_x, start_z, end_x, end_z)
 
+    def read_header(self, f):
+        """Read 8kB header only"""
+        if f.tell() != 0:
+            f.seek(0)
+        # Read location (4096 bytes)
+        self.location_field = f.read(4096)
+        self.chunks = list()
+        # byte offset of chunk coordinates (x,z) : 4((x%32) + (z%32)*32)
+        for z_rel in range(32):
+            for x_rel in range(32):
+                # Offset of current field
+                offset = 4*(x_rel + 32*z_rel)
+                # location field for current chunk coordinates
+                cur_loc = self.location_field[offset:offset+4]
+                # Offset of chunk datas in file
+                data_offset = int(hexlify(cur_loc[0:3]), 16)
+                # Number of sectors (4096 bytes) occupied by chunk
+                data_count = int(hexlify(cur_loc[3]), 16)
+                (x, z) = self.get_absolute_chunk_coords(x_rel, z_rel)
+                self.chunks.append(Chunk(x, z, data_offset, data_count))
+
+        # Read timestamps (4096 bytes)
+        self.timestamps_field = f.read(4096)
+        for z_rel in range(32):
+            for x_rel in range(32):
+                # Offset of current chunk's timestamp in timestamp field
+                offset = 4*(x_rel + 32*z_rel)
+                cur_ts = self.timestamps_field[offset:offset+4]
+                cur_ts = int(hexlify(cur_ts), 16)
+                self.chunks[offset/4].timestamp = cur_ts
+
+    def read_chunk_datas(self, f):
+        """Read chunk data, header must have been read first"""
+        assert self.chunks is not None, "Header has not been read"
+        total_size = 8192
+
+        # Position file at the end of the header
+        if f.tell() != 8192:
+            f.seek(8192)
+        # Read chunk datas (number of data deduced from location fields
+        # go through chunk in the order they are stored in chunk data field
+        for c in sorted(self.chunks, key=lambda x: x.offset):
+            x = c.x
+            z = c.z
+            (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
+            # chunk index in chunks list
+            chunk_idx = x_rel + 32*z_rel
+            size = 4096 * c.sector_count
+            if size > 0:
+                # chunk generated
+                if f.tell() < c.offset * 4096:
+                    # Current position does not match position of current
+                    # chunk This happen if a chunk size reduces below a
+                    # multiple of sector size, the following chunks are not
+                    # relocated
+                    gap = c.offset * 4096 - f.tell()
+                    logging.warning("Region %s, %d bytes gap before %s"
+                                    % (self, gap, c))
+                    self.has_gap = True
+                    f.seek(c.offset * 4096)
+                total_size += size
+                c.chunk_data = f.read(size)
+                length = int(hexlify(c.chunk_data[0:4]), 16)
+                c.length = length
+                if length > size:
+                    logging.warning("chunk (%d, %d) uses %d sector "
+                                    "(%d bytes), chunk data length is %d"
+                                    % (x, z, c.sector_count, size, length))
+                    assert length > size
+
+
+
     def read(self):
         """
         Load Region file into memory to perform actions on region
@@ -125,65 +198,8 @@ class RegionFile:
         Usually done once during init
         """
         with open(self.region_filename, "rb") as f:
-            # Read location (4096 bytes)
-            self.location_field = f.read(4096)
-            self.chunks = list()
-            # byte offset of chunk coordinates (x,z) : 4((x%32) + (z%32)*32)
-            for z_rel in range(32):
-                for x_rel in range(32):
-                    # Offset of current field
-                    offset = 4*(x_rel + 32*z_rel)
-                    # location field for current chunk coordinates
-                    cur_loc = self.location_field[offset:offset+4]
-                    # Offset of chunk datas in file
-                    data_offset = int(hexlify(cur_loc[0:3]), 16)
-                    # Number of sectors (4096 bytes) occupied by chunk
-                    data_count = int(hexlify(cur_loc[3]), 16)
-                    (x, z) = self.get_absolute_chunk_coords(x_rel, z_rel)
-                    self.chunks.append(Chunk(x, z, data_offset, data_count))
-
-            # Read timestamps (4096 bytes)
-            self.timestamps_field = f.read(4096)
-            for z_rel in range(32):
-                for x_rel in range(32):
-                    # Offset of current chunk's timestamp in timestamp field
-                    offset = 4*(x_rel + 32*z_rel)
-                    cur_ts = self.timestamps_field[offset:offset+4]
-                    cur_ts = int(hexlify(cur_ts), 16)
-                    self.chunks[offset/4].timestamp = cur_ts
-
-            # Read chunk datas (number of data deduced from location fields
-            total_size = 8192
-            # go through chunk in the order they are stored in chunk data field
-            for c in sorted(self.chunks, key=lambda x: x.offset):
-                x = c.x
-                z = c.z
-                (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
-                # chunk index in chunks list
-                chunk_idx = x_rel + 32*z_rel
-                size = 4096 * c.sector_count
-                if size > 0:
-                    # chunk generated
-                    if f.tell() < c.offset * 4096:
-                        # Current position does not match position of current
-                        # chunk This happen if a chunk size reduces below a
-                        # multiple of sector size, the following chunks are not
-                        # relocated
-                        gap = c.offset * 4096 - f.tell()
-                        logging.warning("Region %s, %d bytes gap before %s"
-                                        % (self, gap, c))
-                        self.has_gap = True
-                        f.seek(c.offset * 4096)
-                    total_size += size
-                    c.chunk_data = f.read(size)
-                    length = int(hexlify(c.chunk_data[0:4]), 16)
-                    c.length = length
-                    if length > size:
-                        logging.warning("chunk (%d, %d) uses %d sector "
-                                        "(%d bytes), chunk data length is %d"
-                                        % (x, z, c.sector_count, size, length))
-                        assert length > size
-                # logging.debug("Stored %s", c)
+            self.read_header(f)
+            self.read_chunk_datas(f)
 
     def write(self, filename):
         """
