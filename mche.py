@@ -130,24 +130,25 @@ class RegionFile:
             self.location_field = f.read(4096)
             self.chunks = list()
             # byte offset of chunk coordinates (x,z) : 4((x%32) + (z%32)*32)
-            for z in range(32):
-                for x in range(32):
+            for z_rel in range(32):
+                for x_rel in range(32):
                     # Offset of current field
-                    offset = 4*(x + 32*z)
+                    offset = 4*(x_rel + 32*z_rel)
                     # location field for current chunk coordinates
                     cur_loc = self.location_field[offset:offset+4]
                     # Offset of chunk datas in file
                     data_offset = int(hexlify(cur_loc[0:3]), 16)
                     # Number of sectors (4096 bytes) occupied by chunk
                     data_count = int(hexlify(cur_loc[3]), 16)
+                    (x, z) = self.get_absolute_chunk_coords(x_rel, z_rel)
                     self.chunks.append(Chunk(x, z, data_offset, data_count))
 
             # Read timestamps (4096 bytes)
             self.timestamps_field = f.read(4096)
-            for z in range(32):
-                for x in range(32):
+            for z_rel in range(32):
+                for x_rel in range(32):
                     # Offset of current chunk's timestamp in timestamp field
-                    offset = 4*(x + 32*z)
+                    offset = 4*(x_rel + 32*z_rel)
                     cur_ts = self.timestamps_field[offset:offset+4]
                     cur_ts = int(hexlify(cur_ts), 16)
                     self.chunks[offset/4].timestamp = cur_ts
@@ -158,8 +159,9 @@ class RegionFile:
             for c in sorted(self.chunks, key=lambda x: x.offset):
                 x = c.x
                 z = c.z
+                (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
                 # chunk index in chunks list
-                chunk_idx = x + 32*z
+                chunk_idx = x_rel + 32*z_rel
                 size = 4096 * c.sector_count
                 if size > 0:
                     # chunk generated
@@ -193,27 +195,25 @@ class RegionFile:
         """
         with open(filename, "wb") as f:
             # Write locations fields
-            for z in range(32):
-                for x in range(32):
+            for z_rel in range(32):
+                for x_rel in range(32):
                     # relative chunk index in region
-                    chunk_idx = x + 32*z
+                    chunk_idx = x_rel + 32*z_rel
                     chunk = self.chunks[chunk_idx]
                     offset_field = get_byte_seq(chunk.offset, 3)
                     sector_count_field = get_byte_seq(chunk.sector_count, 1)
                     location_field = offset_field + sector_count_field
                     f.write(location_field)
             # Write timestamps fields
-            for z in range(32):
-                for x in range(32):
-                    chunk_idx = x + 32*z
+            for z_rel in range(32):
+                for x_rel in range(32):
+                    chunk_idx = x_rel + 32*z_rel
                     chunk = self.chunks[chunk_idx]
                     timestamp_field = get_byte_seq(chunk.timestamp, 4)
                     f.write(timestamp_field)
 
             # write chunk's datas
             for c in sorted(self.chunks, key=lambda x: x.offset):
-                x = c.x
-                z = c.z
                 # skip chunks with offset 0
                 if c.offset != 0:
                     # Seek to correct position where chunk data needs to be
@@ -267,21 +267,26 @@ class RegionFile:
         z2 = z_region_offset + z_chunk_offset + 15
         return ((x1, z1), (x2, z2))
 
-    def delete_chunk(self, x, z):
+    def get_chunk_index(self, x, z):
+        """Get Chunk index in given region"""
+        (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
+        return x_rel + 32*z_rel
+
+    def delete_chunk(self, x_rel, z_rel):
         """
-        Delete chunk at relative coords x, z
+        Delete chunk at relative coords x_rel, z_rel
 
         Done by setting location and timestamp fields to zero.
         Locations of chunks stored after deleted chunk are updated
         """
-        chunk_idx = x + 32*z
+        chunk_idx = x_rel + 32*z_rel
         deleted_chunk = self.chunks[chunk_idx]
         if deleted_chunk.offset == 0:
-            logging.debug("chunk (%d, %d) has not been generated" % (x, z))
+            logging.debug("chunk (%d, %d) has not been generated" % (x_rel, z_rel))
             return
-        (abs_x, abs_z) = self.get_absolute_chunk_coords(x, z)
+        (abs_x, abs_z) = self.get_absolute_chunk_coords(x_rel, z_rel)
         logging.debug("delete relative chunk (%d, %d) for absolute chunk "
-                      "(%d, %d) in region %s" % (x, z, abs_x, abs_z,
+                      "(%d, %d) in region %s" % (x_rel, z_rel, abs_x, abs_z,
                          os.path.basename(self.region_filename)))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
