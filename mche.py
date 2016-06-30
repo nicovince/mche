@@ -222,6 +222,14 @@ class RegionFile:
                         f.write('\0'*pad_size)
                     f.write(c.chunk_data)
 
+    def is_chunk_in_region(self, x, z):
+        """
+        Check if chunk coords is present in region
+        """
+        return ((self.x*32 <= x) and (x < (self.x + 1)*32) and
+                (self.z*32 <= z) and (z < (self.z + 1)*32))
+
+
     def display_chunk_info(self, x, z):
         """
         Display chunks info of chunk coordinates (x,z)
@@ -272,21 +280,24 @@ class RegionFile:
         (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
         return x_rel + 32*z_rel
 
-    def delete_chunk(self, x_rel, z_rel):
+    def delete_chunk(self, x, z):
         """
-        Delete chunk at relative coords x_rel, z_rel
+        Delete chunk at absolute coords x, z
 
         Done by setting location and timestamp fields to zero.
         Locations of chunks stored after deleted chunk are updated
         """
-        chunk_idx = x_rel + 32*z_rel
+        assert self.is_chunk_in_region(x, z), \
+            "Chunk (%d, %d) is not in region %s" % (x, z, self.region_filename)
+
+        chunk_idx = self.get_chunk_index(x, z)
         deleted_chunk = self.chunks[chunk_idx]
         if deleted_chunk.offset == 0:
-            logging.debug("chunk (%d, %d) has not been generated" % (x_rel, z_rel))
+            logging.debug("chunk (%d, %d) has not been generated" % (x, z))
             return
-        (abs_x, abs_z) = self.get_absolute_chunk_coords(x_rel, z_rel)
+        (x_rel, z_rel) = self.get_relative_chunk_coords(x, z)
         logging.debug("delete relative chunk (%d, %d) for absolute chunk "
-                      "(%d, %d) in region %s" % (x_rel, z_rel, abs_x, abs_z,
+                      "(%d, %d) in region %s" % (x_rel, z_rel, x, z,
                          os.path.basename(self.region_filename)))
         # List of chunks that needs to be updated
         update_chunks = [c for c in self.chunks
@@ -551,7 +562,7 @@ class World:
             rf_name = os.path.join(self.get_dim_dir(dim), r)
             rf = RegionFile(rf_name)
             for (x, z) in coords:
-                rf.delete_chunk(*rf.get_relative_chunk_coords(x, z))
+                rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
 

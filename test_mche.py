@@ -5,6 +5,8 @@ import mche
 import os
 import re
 import sys
+# Test mche module
+# TODO: remove created files
 
 errors_cnt = 0
 
@@ -75,13 +77,26 @@ def test_chunk_eq():
 
 def test_delete_chunk():
     """Chunk Deletion Test"""
+    errors = 0
     rf_name = "/home/pi/mc/juco/region/r.3.3.mca"
     mche_ext = ".mche"
     rf_mche_name = rf_name + mche_ext
     rf = mche.RegionFile(rf_name)
+
+    e = None
+    try:
+        rf.delete_chunk(0, 0)
+    except AssertionError:
+        e = AssertionError
+    except:
+        print "got wrong exception"
+    if not log_tp(e == AssertionError,
+                  "Raise Assertion if delete chunk not present in region"):
+        errors += 1
+
     # 3, 11 is the last chunk stored in the file
     # remove it
-    rf.delete_chunk(3, 11)
+    rf.delete_chunk(*rf.get_absolute_chunk_coords(3, 11))
     rf.write(rf_mche_name)
     # Read Region file with chunk removed
     rf_mche = mche.RegionFile(rf_mche_name)
@@ -92,7 +107,6 @@ def test_delete_chunk():
     # Compare
     chunks_preserved = True
     chunk_deleted = True
-    errors = 0
     for z in range(32):
         for x in range(32):
             i = 32*z + x
@@ -276,12 +290,51 @@ def test_rm_dim_gaps():
     return errors == 0
 
 
+def test_chunk_in_region():
+    """Test Chunk in region"""
+    errors = 0
+    region = "r.3.3.mca"
+    rf = mche.RegionFile("/home/pi/mc/juco/region/%s" % region)
+    coords = (0, 0)
+    if not log_tp(not rf.is_chunk_in_region(*coords),
+                  "Chunk %s not in region %s" % (coords, region)):
+        errors += 1
+
+    coords = (4*32, 3*32)
+    if not log_tp(not rf.is_chunk_in_region(*coords),
+                  "Chunk %s not in region %s" % (coords, region)):
+        errors += 1
+
+    coords = (3*32, 3*32)
+    if not log_tp(rf.is_chunk_in_region(*coords),
+                  "Chunk %s in region %s" % (coords, region)):
+        errors += 1
+
+    coords = (4*32-1, 4*32-1)
+    if not log_tp(rf.is_chunk_in_region(*coords),
+                  "Chunk %s in region %s" % (coords, region)):
+        errors += 1
+
+    region = "r.-1.-1.mca"
+    rf = mche.RegionFile("/home/pi/mc/juco/region/%s" % region)
+    coords = (-1, -1)
+    if not log_tp(rf.is_chunk_in_region(*coords),
+                  "Chunk %s in region %s" % (coords, region)):
+        errors += 1
+
+    coords = (0, 0)
+    if not log_tp(not rf.is_chunk_in_region(*coords),
+                  "Chunk %s not in region %s" % (coords, region)):
+        errors += 1
+
+    return errors == 0
 
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
+    log_test(test_chunk_in_region)
     log_test(test_chunk_eq)
     log_test(test_region_eq)
     log_test(test_delete_chunk)
@@ -289,8 +342,8 @@ if __name__ == "__main__":
     log_test(test_zone_from_str)
     log_test(test_coords_by_region)
     log_test(test_rm_gaps)
-    log_test(test_rm_dim_gaps)
-    log_test(test_read_write) # Long test
+    #log_test(test_rm_dim_gaps)
+    #log_test(test_read_write) # Long test
 
     if errors_cnt != 0:
         sys.exit(1)
