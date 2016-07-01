@@ -394,6 +394,51 @@ class RegionFile:
                 print repr(other.chunks[idx])
         return is_diff
 
+    def get_timestamp_datas(self):
+        """
+        Return list of triplet to draw a heat map of chunks timestamp
+
+        First two values of the triplet are the chunk's coords, last value is
+        the timestamp
+        """
+        # Read only header if nothing has been read yet
+        if self.chunks is None:
+            with open(self.region_filename, "rb") as f:
+                self.read_header(f)
+
+        # Build data
+        data = []
+        for c in self.chunks:
+            data.append((c.x, c.z, c.timestamp))
+        return data
+
+    def create_gp_ts_map(self, dirname):
+        """
+        Create Gnuplot files to draw heatmap of chunk's timestamps
+
+        dirname : directory where gnuplot files are created
+
+        Filenames are derived from region filename
+        """
+        # data file
+        dat_file = os.path.basename(re.sub(".mca", ".dat", self.region_filename))
+        dat_file = os.path.join(dirname, dat_file)
+        timestamp_datas = self.get_timestamp_datas()
+        with open(dat_file, "wb") as f:
+            for (x, z, ts) in timestamp_datas:
+                f.write("%d %d %d\n" % (x, z, ts))
+
+        # gnuplog script
+        file_prefix = os.path.basename(re.sub(".mca", "", self.region_filename))
+        gp_file = os.path.join(dirname, file_prefix + ".gnu")
+        png_file = os.path.join(dirname, file_prefix + ".png")
+        with open(gp_file, "wb") as f:
+            f.write("set terminal png\n")
+            f.write('set output "%s"\n' % png_file)
+            f.write("set view map\n")
+            #f.write('splot "%s" matrix with image\n' % dat_file)
+            f.write("plot '%s' using 1:2:3 with image\n" % dat_file)
+
 
 class World:
     """
