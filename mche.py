@@ -116,8 +116,11 @@ class RegionFile:
         start_z = self.z*512
         end_x = start_x + 511
         end_z = start_z + 511
-        return os.path.basename(self.region_filename) + " (%d, %d) - (%d, %d)"\
-            % (start_x, start_z, end_x, end_z)
+        ret = os.path.basename(self.region_filename)
+        ret += " [%d, %d]" % (self.x, self.z)
+        ret += " (%d, %d) - (%d, %d)" % (start_x, start_z, end_x, end_z)
+        return ret
+
 
     def read_header(self, f):
         """Read 8kB header only"""
@@ -421,23 +424,9 @@ class RegionFile:
         Filenames are derived from region filename
         """
         # data file
-        dat_file = os.path.basename(re.sub(".mca", ".dat", self.region_filename))
-        dat_file = os.path.join(dirname, dat_file)
         timestamp_datas = self.get_timestamp_datas()
-        with open(dat_file, "wb") as f:
-            for (x, z, ts) in timestamp_datas:
-                f.write("%d %d %d\n" % (x, z, ts))
-
-        # gnuplog script
         file_prefix = os.path.basename(re.sub(".mca", "", self.region_filename))
-        gp_file = os.path.join(dirname, file_prefix + ".gnu")
-        png_file = os.path.join(dirname, file_prefix + ".png")
-        with open(gp_file, "wb") as f:
-            f.write("set terminal png\n")
-            f.write('set output "%s"\n' % png_file)
-            f.write("set view map\n")
-            #f.write('splot "%s" matrix with image\n' % dat_file)
-            f.write("plot '%s' using 1:2:3 with image\n" % dat_file)
+        Mche.create_heatmap(timestamp_datas, dirname, file_prefix)
 
 
 class World:
@@ -623,6 +612,15 @@ class World:
                 rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
+    def create_gp_ts_map(self, dirname, dim):
+        region_files = self.get_region_files(dim)
+        datas = []
+        for f in region_files:
+            rf = RegionFile(f, False)
+            datas += rf.get_timestamp_datas()
+            print rf
+        Mche.create_heatmap(datas, dirname, dim)
+
 
 class Mche:
     def __init__(self, opts):
@@ -684,6 +682,35 @@ class Mche:
 
         # Uniquify coords to remove overlaps
         return list(set(ret))
+
+    @staticmethod
+    def create_heatmap(datas, path, file_prefix):
+        """
+        Create Gnuplot script for heatmap of datas
+
+        datas : list of triplet to draw heatmap from, first two are corods,
+        third is heatness
+        path : directory where datas are saved (.dat, .gnu)
+        file_prefix : filename prefix where datas/script are stored
+        """
+        # data file
+        dat_file = os.path.join(path, file_prefix + ".dat")
+        with open(dat_file, "wb") as f:
+            for (x, z, ts) in datas:
+                f.write("%d %d %d\n" % (x, z, ts))
+        #list of timestamps, exclude zero to get actual range
+        ts = [x[2] for x in datas if x[2] != 0]
+
+        # gnuplot script
+        gp_file = os.path.join(path, file_prefix + ".gnu")
+        png_file = os.path.join(path, file_prefix + ".png")
+        with open(gp_file, "wb") as f:
+            f.write("set terminal png\n")
+            f.write('set output "%s"\n' % png_file)
+            #f.write("set cbrange [%d:%d]\n" % (min(ts), max(ts)))
+            f.write("set view map\n")
+            f.write("plot '%s' using 1:2:3 with image\n" % dat_file)
+
 
 
 # TODO

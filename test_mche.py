@@ -339,22 +339,26 @@ def test_create_rf_heat_map():
     rf = mche.RegionFile(filename, read=False)
     rf.create_gp_ts_map("./")
 
+def test_create_world_heat_map():
+    world = mche.World("/home/pi/mc/juco/")
+    world.create_gp_ts_map("./", "overworld")
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    #test_create_rf_heat_map()
-    log_test(test_chunk_in_region)
-    log_test(test_chunk_eq)
-    log_test(test_region_eq)
-    log_test(test_delete_chunk)
-    log_test(test_coords_from_str)
-    log_test(test_zone_from_str)
-    log_test(test_coords_by_region)
-    log_test(test_rm_gaps)
-    log_test(test_rm_dim_gaps)
-    log_test(test_read_write)  # Long test
+    test_create_rf_heat_map()
+    test_create_world_heat_map()
+    #log_test(test_chunk_in_region)
+    #log_test(test_chunk_eq)
+    #log_test(test_region_eq)
+    #log_test(test_delete_chunk)
+    #log_test(test_coords_from_str)
+    #log_test(test_zone_from_str)
+    #log_test(test_coords_by_region)
+    #log_test(test_rm_gaps)
+    #log_test(test_rm_dim_gaps)
+    #log_test(test_read_write)  # Long test
 
     if errors_cnt != 0:
         sys.exit(1)
