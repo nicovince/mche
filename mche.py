@@ -33,7 +33,7 @@ class Chunk:
         # compression kind : 1 byte
         # chunk payload : length - 1 bytes
         self.chunk_data = None
-        # length of chunk data (withou
+        # length of chunk data (without padding)
         self.length = None
 
     def __eq__(self, other):
@@ -188,8 +188,6 @@ class RegionFile:
                                     "(%d bytes), chunk data length is %d"
                                     % (x, z, c.sector_count, size, length))
                     assert length > size
-
-
 
     def read(self):
         """

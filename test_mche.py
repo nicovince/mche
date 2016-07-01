@@ -348,7 +348,7 @@ if __name__ == "__main__":
     log_test(test_coords_by_region)
     log_test(test_rm_gaps)
     log_test(test_rm_dim_gaps)
-    log_test(test_read_write) # Long test
+    log_test(test_read_write)  # Long test
 
     if errors_cnt != 0:
         sys.exit(1)
