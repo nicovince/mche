@@ -85,7 +85,7 @@ class RegionFile:
         Initialize instance with region filename attribute
         """
         self.region_filename = filename
-        self.x, self.z = self.get_region_coords()
+        self.x, self.z = self.get_coords()
         self.has_gap = False
         self.chunks = None
         self.location_field = None
@@ -260,15 +260,20 @@ class RegionFile:
         print "timestamp : %d" % self.chunks[chunk_idx].timestamp
         print "Chunk coords : " + str(self.get_chunk_coords_blk(x, z))
 
-    def get_region_coords(self):
+    @staticmethod
+    def get_coords_str(region_filename):
+        """Get region coordinates from filename"""
+        filename = os.path.basename(region_filename)
+        (x, z) = re.findall("-?\d+", filename)
+        return (int(x), int(z))
+
+    def get_coords(self):
         """
-        Get region coordinates from filename
+        Get region coordinates
 
         In region coordinates, not in blocks coordinates
         """
-        filename = os.path.basename(self.region_filename)
-        (x, z) = re.findall("-?\d+", filename)
-        return (int(x), int(z))
+        return RegionFile.get_coords_str(self.region_filename)
 
     def get_chunk_coords_blk(self, x, z):
         """
@@ -411,9 +416,13 @@ class RegionFile:
 
         # Build data
         data = []
+        ddata = dict()
         for c in self.chunks:
             data.append((c.x, c.z, c.timestamp))
-        return data
+            if not ddata.has_key(c.x):
+                ddata[c.x] = dict()
+            ddata[c.x][c.z] = c.timestamp
+        return ddata
 
     def create_gp_ts_map(self, dirname):
         """
@@ -538,6 +547,21 @@ class World:
         region_z = (block_z >> 4) >> 5
         return (region_x, region_z)
 
+    def get_region_idx_range(self, dim):
+        """Get Range of region index for dimension"""
+        files = self.get_region_files(dim)
+        (min_x, min_z) = RegionFile.get_coords_str(files[0])
+        (max_x, max_z) = (min_x, min_z)
+        for f in files:
+            (x,z) = RegionFile.get_coords_str(f)
+            min_x = min(min_x, x)
+            min_z = min(min_z, z)
+            max_x = max(max_x, x)
+            max_z = max(max_z, z)
+        return ((min_x, max_x), (min_z, max_z))
+
+
+
     @staticmethod
     def get_chunk_coords(block_x, block_z):
         """
@@ -613,12 +637,29 @@ class World:
             rf.write(rf_name + ext)
 
     def create_gp_ts_map(self, dirname, dim):
+        """Create Gnuplot Timestamp map for given dimension"""
         region_files = self.get_region_files(dim)
-        datas = []
+
+        # Initial column dictionary
+        ranges = self.get_region_idx_range(dim)
+        ((min_x, max_x), (min_z, max_z)) = ranges
+        init_dict = {key: 0 for key in range(32*min_z, 32*(max_z+1))}
+
+        # Initialize full dict
+        datas = dict()
+        for x in range(32*min_x, 32*(max_x+1)):
+            datas[x] = dict(init_dict)
+
+        # Fill dict with actual values
         for f in region_files:
             rf = RegionFile(f, False)
-            datas += rf.get_timestamp_datas()
-            print rf
+            rf_data = rf.get_timestamp_datas()
+            # merge
+            for (key, item_dict) in rf_data.items():
+                for (z, ts) in item_dict.items():
+                    assert datas[key][z] == 0
+                    datas[key][z] = ts
+
         Mche.create_heatmap(datas, dirname, dim)
 
 
@@ -693,23 +734,47 @@ class Mche:
         path : directory where datas are saved (.dat, .gnu)
         file_prefix : filename prefix where datas/script are stored
         """
+        # list of timestamps
+        ts = list()
         # data file
         dat_file = os.path.join(path, file_prefix + ".dat")
         with open(dat_file, "wb") as f:
-            for (x, z, ts) in datas:
-                f.write("%d %d %d\n" % (x, z, ts))
-        #list of timestamps, exclude zero to get actual range
-        ts = [x[2] for x in datas if x[2] != 0]
+            for (k_x, d_x) in sorted(datas.items()):
+                for (k_z, d_xz) in sorted(d_x.items()):
+                    f.write("%d %d %d\n" % (k_x, k_z, d_xz))
+                    if d_xz != 0:
+                        ts.append(d_xz)
+                f.write("\n")
 
         # gnuplot script
         gp_file = os.path.join(path, file_prefix + ".gnu")
         png_file = os.path.join(path, file_prefix + ".png")
         with open(gp_file, "wb") as f:
+            # gnuplot count number of second since 2000, != than epoch
+            gp_offset = 946684800
             f.write("set terminal png\n")
+            f.write('set title "Heat map of chunks modification dates"\n')
             f.write('set output "%s"\n' % png_file)
-            #f.write("set cbrange [%d:%d]\n" % (min(ts), max(ts)))
+            f.write("\n")
+
+            # palette
+            f.write('# Configure palette\n')
+            f.write('set cbdata time\n')
+            f.write('set format cb "\%m-\%Y"\n')
+            f.write('set timefmt "\%s"\n')
+            f.write("set cbrange [%d:%d]\n" % (min(ts)-gp_offset, max(ts)-gp_offset))
+            f.write("\n")
+
+            # xy tics
+            f.write('# Configure xy axis\n')
+            f.write('set xtics 32\n')
+            f.write('set ytics 32\n')
+            f.write('set yrange [*:*] reverse\n')
+            f.write("\n")
+
             f.write("set view map\n")
-            f.write("plot '%s' using 1:2:3 with image\n" % dat_file)
+            f.write("plot '%s' using 1:2:($3-946684800) with image\n" % dat_file)
+            f.write("# vim: set syntax=gnuplot:\n")
 
 
 

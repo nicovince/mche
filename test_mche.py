@@ -130,6 +130,7 @@ def test_delete_chunk():
                 log_tp(chunk_deleted, "Chunk (%d, %d) shall be cleared"
                        % (x, z))
     log_tp(chunks_preserved, "Chunks others than (3, 11) are untouched")
+    os.remove(rf_mche_name)
     return (errors == 0)
 
     # first_chunk = [c for c in sorted(rf.chunks, key=lambda x: x.offset)
@@ -269,6 +270,7 @@ def test_rm_gaps():
         rf_orig.diff(rf_nogaps)
 
         errors += 1
+    os.remove(nogaps_file)
     return errors == 0
 
 
@@ -292,6 +294,9 @@ def test_rm_dim_gaps():
                   "Region Files without gaps matches originals"):
         print "Mismatches on " + str(mismatch)
         errors += 1
+    else:
+        for f in nogaps_files:
+            os.remove(f)
     return errors == 0
 
 
@@ -336,18 +341,26 @@ def test_chunk_in_region():
 
 def test_create_rf_heat_map():
     filename = "/home/pi/mc/juco/region/r.0.0.mca"
+    dirname = "heatmap_region"
+    dirname = "./"
+    if not os.path.exists(dirname):
+        os.mkdir(dirname)
     rf = mche.RegionFile(filename, read=False)
-    rf.create_gp_ts_map("./")
+    rf.create_gp_ts_map(dirname)
 
 def test_create_world_heat_map():
+    dirname = "heatmap_world"
+    dirname = "./"
+    if not os.path.exists(dirname):
+        os.mkdir(dirname)
     world = mche.World("/home/pi/mc/juco/")
-    world.create_gp_ts_map("./", "overworld")
+    world.create_gp_ts_map(dirname, "overworld")
 
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    test_create_rf_heat_map()
+    #test_create_rf_heat_map()
     test_create_world_heat_map()
     #log_test(test_chunk_in_region)
     #log_test(test_chunk_eq)
