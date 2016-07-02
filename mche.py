@@ -773,7 +773,7 @@ class Mche:
             f.write("\n")
 
             f.write("set view map\n")
-            f.write("plot '%s' using 1:2:($3-946684800) with image\n" % dat_file)
+            f.write("plot '%s' using 1:2:($3-946684800) with image notitle\n" % dat_file)
             f.write("# vim: set syntax=gnuplot:\n")
 
 
