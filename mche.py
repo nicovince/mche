@@ -41,7 +41,7 @@ class Chunk:
         Compare coordinates, length, timestamp, sector count and chunk_data
         fields
 
-        offset is ommited because it can moved when removing gaps
+        offset is ommited because it can change when removing gaps
         """
         return self.x == other.x and \
             self.z == other.z and \
@@ -236,6 +236,30 @@ class RegionFile:
                         pad_size = c.offset * 4096 - f.tell()
                         f.write('\0'*pad_size)
                     f.write(c.chunk_data)
+
+    def count_gaps(self):
+        """Count gaps in bytes between chunks"""
+        gap_size = 0
+        if self.chunks is None:
+            with open(self.region_filename, "rb") as f:
+                self.read_header(f)
+        # First offset shall be 2 because of 8kB header
+        expected_offset=2
+        # Iterate through chunks in offset order
+        for c in sorted(self.chunks, key=lambda x: x.offset):
+            # Skip ungenerated chunks
+            if c.offset != 0:
+                assert expected_offset <= c.offset, \
+                    "Chunk's offset (%d) cannot be lower than %d" %\
+                    expected_offset
+                gap_size += 4096*(c.offset - expected_offset)
+                expected_offset = c.offset + c.sector_count
+        filesize = os.path.getsize(self.region_filename)
+        gap_size += filesize - 4096*expected_offset
+        assert gap_size < filesize, \
+            "gap size (%d) cannog be greater than filesize (%d)." %\
+            (gap_size, filesize)
+        return gap_size
 
     def is_chunk_in_region(self, x, z):
         """
@@ -668,10 +692,20 @@ class Mche:
 
     def run(self):
         coords = self.get_delete_coords()
+
+        # Delete requested chunks
         if len(coords) > 0:
             self.world.delete_chunks(self.dimension, coords, self.suffix)
+
+        # Remove gaps between chunks
         if self.remove_gaps:
             world.remove_gaps()
+
+        # Generate informations
+        if self.info:
+            # Heatmap
+            self.world.create_gp_ts_map("heatmap_%s" % self.dimension,
+                                        self.dimension)
 
     @staticmethod
     def order_zone(coords1, coords2):
@@ -777,17 +811,6 @@ class Mche:
             f.write("# vim: set syntax=gnuplot:\n")
 
 
-# TODO
-# options : arg
-# --delete-chunk : chunk coords
-# --delete-zone : chunk coords - chunk coords
-# --del-chunk-at-block : block coords
-# --del-zone-between-blocks : block coords - block coords
-# --suffix, -s : ext
-# --info, -i : gaps, number of chunks generated, histogram by timestamps
-# --remove-gaps, -r : none
-# --debug, -d : none
-# --dimension : overworld, nether, theend
 def get_coords_from_str(s):
     """
     Return list of coords from string

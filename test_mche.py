@@ -255,6 +255,23 @@ def test_coords_by_region():
     return errors == 0
 
 
+def test_gaps():
+    """Test gap counter"""
+    errors = 0
+    filename = "/home/pi/mc/juco/region/r.0.0.mca"
+    rf = mche.RegionFile(filename)
+    if not log_tp(rf.count_gaps() > 0, "Gaps present in file %s" % filename):
+        errors += 1
+
+    filename = "/home/pi/mc/juco/region/r.3.3.mca"
+    rf = mche.RegionFile(filename)
+    if not log_tp(rf.count_gaps() == 0,
+                  "No Gaps present in file %s" % filename):
+        errors += 1
+
+    return errors == 0
+
+
 def test_rm_gaps():
     """Test Removing Gaps from Region File"""
     errors = 0
@@ -352,7 +369,7 @@ def test_create_rf_heat_map():
 
 def test_create_world_heat_map():
     dirname = "heatmap_world"
-    dirname = "./"
+    #dirname = "./"
     if not os.path.exists(dirname):
         os.mkdir(dirname)
     world = mche.World("/home/pi/mc/juco/")
@@ -363,17 +380,18 @@ if __name__ == "__main__":
                         level=logging.DEBUG)
 
     #test_create_rf_heat_map()
-    test_create_world_heat_map()
-    #log_test(test_chunk_in_region)
-    #log_test(test_chunk_eq)
-    #log_test(test_region_eq)
-    #log_test(test_delete_chunk)
-    #log_test(test_coords_from_str)
-    #log_test(test_zone_from_str)
-    #log_test(test_coords_by_region)
-    #log_test(test_rm_gaps)
-    #log_test(test_rm_dim_gaps)
-    #log_test(test_read_write)  # Long test
+    #test_create_world_heat_map()
+    log_test(test_gaps)
+    log_test(test_chunk_in_region)
+    log_test(test_chunk_eq)
+    log_test(test_region_eq)
+    log_test(test_delete_chunk)
+    log_test(test_coords_from_str)
+    log_test(test_zone_from_str)
+    log_test(test_coords_by_region)
+    log_test(test_rm_gaps)
+    # log_test(test_rm_dim_gaps)
+    # log_test(test_read_write)  # Long test
 
     if errors_cnt != 0:
         sys.exit(1)
