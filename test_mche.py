@@ -339,6 +339,7 @@ def test_chunk_in_region():
 
     return errors == 0
 
+
 def test_create_rf_heat_map():
     filename = "/home/pi/mc/juco/region/r.0.0.mca"
     dirname = "heatmap_region"
@@ -347,6 +348,7 @@ def test_create_rf_heat_map():
         os.mkdir(dirname)
     rf = mche.RegionFile(filename, read=False)
     rf.create_gp_ts_map(dirname)
+
 
 def test_create_world_heat_map():
     dirname = "heatmap_world"

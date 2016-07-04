@@ -121,7 +121,6 @@ class RegionFile:
         ret += " (%d, %d) - (%d, %d)" % (start_x, start_z, end_x, end_z)
         return ret
 
-
     def read_header(self, f):
         """Read 8kB header only"""
         if f.tell() != 0:
@@ -419,7 +418,7 @@ class RegionFile:
         ddata = dict()
         for c in self.chunks:
             data.append((c.x, c.z, c.timestamp))
-            if not ddata.has_key(c.x):
+            if c.x not in ddata:
                 ddata[c.x] = dict()
             ddata[c.x][c.z] = c.timestamp
         return ddata
@@ -434,7 +433,8 @@ class RegionFile:
         """
         # data file
         timestamp_datas = self.get_timestamp_datas()
-        file_prefix = os.path.basename(re.sub(".mca", "", self.region_filename))
+        file_prefix = os.path.basename(re.sub(".mca", "",
+                                              self.region_filename))
         Mche.create_heatmap(timestamp_datas, dirname, file_prefix)
 
 
@@ -553,14 +553,12 @@ class World:
         (min_x, min_z) = RegionFile.get_coords_str(files[0])
         (max_x, max_z) = (min_x, min_z)
         for f in files:
-            (x,z) = RegionFile.get_coords_str(f)
+            (x, z) = RegionFile.get_coords_str(f)
             min_x = min(min_x, x)
             min_z = min(min_z, z)
             max_x = max(max_x, x)
             max_z = max(max_z, z)
         return ((min_x, max_x), (min_z, max_z))
-
-
 
     @staticmethod
     def get_chunk_coords(block_x, block_z):
@@ -748,7 +746,7 @@ class Mche:
 
         # gnuplot script
         gp_file = os.path.join(path, file_prefix + ".gnu")
-        png_file = os.path.join(path, file_prefix + ".png")
+        png_file = file_prefix + ".png"
         with open(gp_file, "wb") as f:
             # gnuplot count number of second since 2000, != than epoch
             gp_offset = 946684800
@@ -762,7 +760,8 @@ class Mche:
             f.write('set cbdata time\n')
             f.write('set format cb "\%m-\%Y"\n')
             f.write('set timefmt "\%s"\n')
-            f.write("set cbrange [%d:%d]\n" % (min(ts)-gp_offset, max(ts)-gp_offset))
+            f.write("set cbrange [%d:%d]\n" % (min(ts)-gp_offset,
+                                               max(ts)-gp_offset))
             f.write("\n")
 
             # xy tics
@@ -773,9 +772,9 @@ class Mche:
             f.write("\n")
 
             f.write("set view map\n")
-            f.write("plot '%s' using 1:2:($3-946684800) with image notitle\n" % dat_file)
+            f.write("plot '%s' using 1:2:($3-%d) with image notitle\n" %
+                    (os.path.basename(dat_file), gp_offset))
             f.write("# vim: set syntax=gnuplot:\n")
-
 
 
 # TODO
