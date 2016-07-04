@@ -704,8 +704,11 @@ class Mche:
         # Generate informations
         if self.info:
             # Heatmap
-            self.world.create_gp_ts_map("heatmap_%s" % self.dimension,
-                                        self.dimension)
+            folder = "heatmap_%s" % self.dimension
+            self.world.create_gp_ts_map(folder, self.dimension)
+            print "Heatmap created under %s" % folder
+            # gaps
+            #TODO add method to World to generate report on gaps
 
     @staticmethod
     def order_zone(coords1, coords2):
