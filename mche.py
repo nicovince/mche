@@ -259,6 +259,13 @@ class RegionFile:
         assert gap_size < filesize, \
             "gap size (%d) cannog be greater than filesize (%d)." %\
             (gap_size, filesize)
+        if gap_size > 0:
+            self.has_gap = True
+            logging.debug("%d bytes lost between chunks in %s" %
+                          (gap_size, self.region_filename))
+        else:
+            logging.debug("No gap between chunks in %s" %
+                          (self.region_filename))
         return gap_size
 
     def is_chunk_in_region(self, x, z):
@@ -524,6 +531,23 @@ class World:
                         if re.match("r.-?\d+\.-?\d+\.mca$", e)]
         return region_files
 
+    def count_gaps(self, dimension):
+        """
+        Count number of bytes in gaps between chunks
+
+        Number of bytes for each region is printed
+        """
+        print "dimension : %s" % dimension
+        total = 0
+        for f in self.get_region_files(dimension):
+            rf = RegionFile(f, read=False)
+            gap = rf.count_gaps()
+            total += gap
+            print " - %s : %d bytes" % (os.path.basename(f), gap)
+        print   "-> total gaps in %s : %d bytes" % (dimension, total)
+
+
+
     def remove_gaps(self, dim, suffix=None):
         """
         Remove gaps for region files in given dimension
@@ -705,10 +729,13 @@ class Mche:
         if self.info:
             # Heatmap
             folder = "heatmap_%s" % self.dimension
+            # create folder
+            if not os.path.exists(folder):
+                os.mkdir(folder)
             self.world.create_gp_ts_map(folder, self.dimension)
             print "Heatmap created under %s" % folder
             # gaps
-            #TODO add method to World to generate report on gaps
+            self.world.count_gaps(self.dimension)
 
     @staticmethod
     def order_zone(coords1, coords2):
