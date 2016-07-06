@@ -369,7 +369,6 @@ def test_create_rf_heat_map():
 
 def test_create_world_heat_map():
     dirname = "heatmap_world"
-    #dirname = "./"
     if not os.path.exists(dirname):
         os.mkdir(dirname)
     world = mche.World("/home/pi/mc/juco/")
@@ -390,8 +389,8 @@ if __name__ == "__main__":
     log_test(test_zone_from_str)
     log_test(test_coords_by_region)
     log_test(test_rm_gaps)
-    # log_test(test_rm_dim_gaps)
-    # log_test(test_read_write)  # Long test
+    log_test(test_rm_dim_gaps)
+    log_test(test_read_write)  # Long test
 
     if errors_cnt != 0:
         sys.exit(1)

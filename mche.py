@@ -244,7 +244,7 @@ class RegionFile:
             with open(self.region_filename, "rb") as f:
                 self.read_header(f)
         # First offset shall be 2 because of 8kB header
-        expected_offset=2
+        expected_offset = 2
         # Iterate through chunks in offset order
         for c in sorted(self.chunks, key=lambda x: x.offset):
             # Skip ungenerated chunks
@@ -544,9 +544,7 @@ class World:
             gap = rf.count_gaps()
             total += gap
             print " - %s : %d bytes" % (os.path.basename(f), gap)
-        print   "-> total gaps in %s : %d bytes" % (dimension, total)
-
-
+        print "-> total gaps in %s : %d bytes" % (dimension, total)
 
     def remove_gaps(self, dim, suffix=None):
         """
