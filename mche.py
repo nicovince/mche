@@ -22,7 +22,17 @@ def get_byte_seq(data, n):
 
 
 class Chunk:
+    """
+    Chunk object stored in RegionFile
+    """
     def __init__(self, x, z, offset, sector_count):
+        """
+        Initialize with data found in the 4kB header
+
+        x, z : chunk absolute coordinates
+        offset : offset in multiple of 4096 where chunk data is stored
+        sector_count : number of sector used to store chunk data
+        """
         self.x = x
         self.z = z
         self.offset = offset
@@ -51,6 +61,7 @@ class Chunk:
             self.length == other.length
 
     def __ne__(self, other):
+        """x.__ne__(y) <==> x != y"""
         return not self.__eq__(other)
 
     def __repr__(self):
@@ -708,11 +719,15 @@ class World:
 
 
 class Mche:
+    """Defines methods to run script according to options passed"""
+
     def __init__(self, opts):
+        """Initialize object with options parsed from command line"""
         self.__dict__ = opts
         self.world = World(self.world_name)
 
     def run(self):
+        """Execute requested operations based on options"""
         coords = self.get_delete_coords()
 
         # Delete requested chunks
