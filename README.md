@@ -2,6 +2,11 @@
 
 This tool can be used to delete chunks from a Minecraft World, remove unused space in region files, create map of visited chunk by date
 
+## Usage
+`mche.py --help`
+
+`mche.py [options] <path to world folder>`
+
 ## Delete Chunks
 You can specify a single chunk, a list of chunk, a zone or a list of zone to delete. The deleted chunks will be regenerated the next time you visit the area.
 Coords are given either in chunks coords or blocks coords.
@@ -20,7 +25,9 @@ Zones are separated by a comma.
 
 ## Remove unused space
 The space used to store a chunk in the region file may vary, when the size decrease, the chunk stored after may not be moved at the end of the current chunk, leaving unused space. Removing those dead space can help you save a few mega bytes (4MB on a 172MB region)
+
 You can see this operation as a kind of defragmentation.
+
 You should probably run this option only when you want to archive your world : the unused space may be used a a later time without having to move all the chunks behind it. When Mojang decided not to save chunks back to back they probably studied the pros and cons and decided it was more efficient to leave space in between to save chunks.
 
 ## Gather informations
