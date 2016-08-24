@@ -700,8 +700,12 @@ class World:
         if ext is None:
             ext = ""
         assert dim in self.dimensions, "Dimension %s is not valid" % dim
+
+        # organize chunks marked for deletion in dictionary indexed by region
+        # filename
         chunks_by_region = self.get_chunks_coords_by_region(coords)
 
+        # iterate on region file / list of chunk coords to be deleted
         for r, coords in chunks_by_region.items():
             rf_name = os.path.join(self.get_dim_dir(dim), r)
             rf = RegionFile(rf_name)
