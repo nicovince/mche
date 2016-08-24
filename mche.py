@@ -713,6 +713,15 @@ class World:
                 rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
+    def update_nbt(self, dim, coords):
+        """
+        Update NBT files (Fortress.dat, Stronghold.dat, ...) to account for
+        deleted chunks.
+        When a deleted chunk is intersect with the bounding box of a structure,
+        the structure is deleted from the NBT file.
+        """
+        #TODO
+
     def create_gp_ts_map(self, dirname, dim):
         """Create Gnuplot Timestamp map for given dimension"""
         region_files = self.get_region_files(dim)
