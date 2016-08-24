@@ -291,6 +291,62 @@ def test_rm_gaps():
     return errors == 0
 
 
+def test_bb():
+    """Test Bounding boxes intersection"""
+    errors = 0
+    # bb2 within bb1
+    bb1 = [0, 0, 0, 10, 10, 10]
+    bb2 = [5, 5, 5, 7, 7, 7]
+    if not log_tp(mche.bb_intersect(bb1, bb2),
+                  "Check bb1 surounds bb2 intersection"):
+        errors += 1
+    # bb1 within bb2
+    bb1 = [-5, -5, -5, -3, -3, -3]
+    bb2 = [-20, -20, -20, -1, -1, -1]
+    if not log_tp(mche.bb_intersect(bb1, bb2),
+                  "Check bb1 within bb2 intersection"):
+        errors += 1
+    # bb1 intersects bb2 on the right side of bb2
+    bb1 = [10, 0, 10, 20, 0, 20]
+    bb2 = [15, 0, 15, 25, 0, 23]
+    if not log_tp(mche.bb_intersect(bb1, bb2),
+                  "Check bb1 intersects bb2 on the right of bb2"):
+        errors += 1
+    # bb1 intersects bb2 on the left side of bb2
+    bb1 = [0, 0, 0, 20, 0, 20]
+    bb2 = [1, 1, 1, 10, 0, 10]
+    if not log_tp(mche.bb_intersect(bb1, bb2),
+                  "Check bb1 intersects bb2 on the left of bb2"):
+        errors += 1
+
+    # bb1 on the left of bb2
+    bb1 = [10, 0, 0, 20, 0, 0]
+    bb2 = [30, 0, 0, 38, 0, 0]
+    if not log_tp(not mche.bb_intersect(bb1, bb2),
+                  "Check bb1 does not intersect bb2 (left)"):
+        errors += 1
+    # bb1 on the right of bb2
+    bb1 = [0, 0, 0, 10, 0, 0]
+    bb2 = [20, 0, 0, 30, 0, 0]
+    if not log_tp(not mche.bb_intersect(bb1, bb2),
+                  "Check bb1 does not intersect bb2 (right)"):
+        errors += 1
+    # bb1 above bb2
+    bb1 = [0, 0, 10, 5, 0, 20]
+    bb2 = [0, 0, 0,  5, 0, 5]
+    if not log_tp(not mche.bb_intersect(bb1, bb2),
+                  "Check bb1 does not intersect bb2 (above)"):
+        errors += 1
+    # bb1 belo bb2
+    bb1 = [0, 0, 00, 5, 0, 10]
+    bb2 = [0, 0, 20, 5, 0, 25]
+    if not log_tp(not mche.bb_intersect(bb1, bb2),
+                  "Check bb1 does not intersect bb2 (below)"):
+        errors += 1
+
+    return errors == 0
+
+
 def test_rm_dim_gaps():
     """Test Removing Gaps from Dimension Region files"""
     errors = 0
@@ -390,7 +446,8 @@ if __name__ == "__main__":
     log_test(test_coords_by_region)
     log_test(test_rm_gaps)
     log_test(test_rm_dim_gaps)
-    log_test(test_read_write)  # Long test
+    log_test(test_bb)
+    #log_test(test_read_write)  # Long test
 
     if errors_cnt != 0:
         sys.exit(1)

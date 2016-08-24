@@ -20,6 +20,24 @@ def get_byte_seq(data, n):
     ret = unhexlify(fmt % data)
     return ret
 
+def bb_intersect(bb1, bb2):
+    """
+    Return true when two bounding box intersects
+    bb1 and bb2 are list of coordinates of the bounding box :
+    [x, y, z, x', y', z']
+    """
+    [bb1_x1, bb1_y1, bb1_z1, bb1_x2, bb1_y2, bb1_z2] = bb1
+    [bb2_x1, bb2_y1, bb2_z1, bb2_x2, bb2_y2, bb2_z2] = bb2
+    # Check x intersection
+    if (bb1_x1 > bb2_x2) or (bb1_x2 < bb2_x1):
+        return False
+
+    # Check z intersection
+    if (bb1_z1 > bb2_z2) or (bb1_z2 < bb2_z1):
+        return False
+
+    return True
+
 
 class Chunk:
     """
