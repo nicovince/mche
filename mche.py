@@ -5,6 +5,7 @@ import re
 import logging
 import itertools
 import argparse
+import nbt
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -713,14 +714,38 @@ class World:
                 rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
-    def update_nbt(self, dim, coords):
+    def update_nbts(self, dim, coords):
         """
         Update NBT files (Fortress.dat, Stronghold.dat, ...) to account for
         deleted chunks.
-        When a deleted chunk is intersect with the bounding box of a structure,
+        When a deleted chunk intersects with the bounding box of a structure,
         the structure is deleted from the NBT file.
+        Coords is given in chunk coordinates
         """
-        #TODO
+        # Get list of nbt files that needs to be updated for dimension
+        if dim == "overworld":
+            dat_files = ["Monument.dat", "Stronghold.dat", "Mineshaft.dat"]
+        elif dim == "theend":
+            dat_files = ["EndCity.dat"]
+        elif dim == "nether":
+            dat_files = ["Fortress.dat"]
+        # TODO change coords to list of coordinates to call this function only once
+
+        # Bounding box of deleted chunk
+        bb_chunk = Mche.get_bb(*coords)
+
+        nbt_dir = os.path.join(self.world, "data")
+        for dat_file in dat_files:
+            dat_path = os.path.join(nbt_dir, dat_file)
+            print "Loading nbt %s, this may take a while" % (dat_path)
+            n = nbt.nbt.NBTFile(dat_path)
+            for elt in n["data"]["Features"]:
+                bb_elt = n["data"]["Features"]["%s" % elt]["BB"]
+                if bb_intersect(bb_chunk, bb_elt):
+                    n["data"]["Features"].pop("%s" % elt)
+                    logging.info("Removed element %s from %s" % (elt, dat_file))
+            # Save nbt file
+            n.write_file()
 
     def create_gp_ts_map(self, dirname, dim):
         """Create Gnuplot Timestamp map for given dimension"""
@@ -816,7 +841,6 @@ class Mche:
 
         # Adds chunks given by blocks zones
         if self.del_zone_blk_coords is not None:
-            print "here"
             for zone in self.del_zone_blk_coords:
                 (coords_1, coords_2) = Mche.order_zone(*zone)
                 chunk_1 = World.get_chunk_coords(*coords_1)
@@ -883,6 +907,20 @@ class Mche:
             f.write("plot '%s' using 1:2:($3-%d) with image notitle\n" %
                     (os.path.basename(dat_file), gp_offset))
             f.write("# vim: set syntax=gnuplot:\n")
+
+    @staticmethod
+    def get_bb(chunk_x, chunk_z):
+        """
+        Return bounding box in block coordinates of given chunk
+        [x,y,z,x',y',z']
+        """
+        x1 = chunk_x * 16
+        x2 = chunk_x * 16 + 15
+        z1 = chunk_z * 16
+        z2 = chunk_z * 16 + 15
+        y1 = 0
+        y2 = 255
+        return [x1,y1,z1,x2,y2,z2]
 
 
 def get_coords_from_str(s):

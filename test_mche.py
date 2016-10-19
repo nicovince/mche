@@ -430,12 +430,17 @@ def test_create_world_heat_map():
     world = mche.World("/home/pi/mc/juco/")
     world.create_gp_ts_map(dirname, "overworld")
 
+def test_load_nbt():
+    world = mche.World("/home/pi/mc/juco/")
+    world.update_nbts("nether", [8,7])
+
+
 if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    #test_create_rf_heat_map()
-    #test_create_world_heat_map()
+    test_create_rf_heat_map()
+    test_create_world_heat_map()
     log_test(test_gaps)
     log_test(test_chunk_in_region)
     log_test(test_chunk_eq)
@@ -447,7 +452,8 @@ if __name__ == "__main__":
     log_test(test_rm_gaps)
     log_test(test_rm_dim_gaps)
     log_test(test_bb)
-    #log_test(test_read_write)  # Long test
+    log_test(test_read_write)  # Long test
+    #test_load_nbt()
 
     if errors_cnt != 0:
         sys.exit(1)
