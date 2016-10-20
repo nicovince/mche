@@ -714,13 +714,14 @@ class World:
                 rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
-    def update_nbts(self, dim, coords):
+        # Update nbts to force regeneration of structures
+        self.update_nbts(dim, coords, ext)
+
+    def load_nbts(self, dim):
         """
-        Update NBT files (Fortress.dat, Stronghold.dat, ...) to account for
-        deleted chunks.
-        When a deleted chunk intersects with the bounding box of a structure,
-        the structure is deleted from the NBT file.
-        Coords is given in chunk coordinates
+        Load NBT files required for dimension
+
+        Return dictionary of nbt objects indexed by filename
         """
         # Get list of nbt files that needs to be updated for dimension
         if dim == "overworld":
@@ -729,23 +730,51 @@ class World:
             dat_files = ["EndCity.dat"]
         elif dim == "nether":
             dat_files = ["Fortress.dat"]
-        # TODO change coords to list of coordinates to call this function only once
-
-        # Bounding box of deleted chunk
-        bb_chunk = Mche.get_bb(*coords)
 
         nbt_dir = os.path.join(self.world, "data")
-        for dat_file in dat_files:
-            dat_path = os.path.join(nbt_dir, dat_file)
-            print "Loading nbt %s, this may take a while" % (dat_path)
-            n = nbt.nbt.NBTFile(dat_path)
-            for elt in n["data"]["Features"]:
-                bb_elt = n["data"]["Features"]["%s" % elt]["BB"]
-                if bb_intersect(bb_chunk, bb_elt):
-                    n["data"]["Features"].pop("%s" % elt)
-                    logging.info("Removed element %s from %s" % (elt, dat_file))
-            # Save nbt file
-            n.write_file()
+
+        # Load nbt in dictionary
+        d = dict()
+        for f in dat_files:
+            nbt_file = os.path.join(nbt_dir, f)
+            print "Loading %s nbt file, this may take a while" % (nbt_file)
+            d[nbt_file] = nbt.nbt.NBTFile(nbt_file)
+        return d
+
+    def update_nbts(self, dim, coords, ext=None):
+        """
+        Update NBT files (Fortress.dat, Stronghold.dat, ...) to account for
+        deleted chunks.
+        When a deleted chunk intersects with the bounding box of a structure,
+        the structure is deleted from the NBT file.
+
+        Coords is given in chunk coordinates
+        NBT file is saved using ext suffix
+        """
+        if ext is None:
+            ext = ""
+
+        # Load nbt files
+        nbt_files = self.load_nbts(dim)
+
+        nbt_dir = os.path.join(self.world, "data")
+        # Iterate over each nbt file
+        for nbt_file, nbt_obj in nbt_files.items():
+            # Iterate over each element in nbt file
+            for elt in nbt_obj["data"]["Features"]:
+                # Bounding box of current element
+                bb_elt = nbt_obj["data"]["Features"]["%s" % elt]["BB"]
+                for coord in coords:
+                    # Bounding box of deleted chunk
+                    bb_chunk = Mche.get_bb(*coord)
+                    # Check if chunk intersect with element
+                    if bb_intersect(bb_chunk, bb_elt):
+                        nbt_obj["data"]["Features"].pop("%s" % elt)
+                        logging.info("Removed element %s from %s" % (elt, nbt_file))
+
+        # Write nbt files
+        for nbt_file, nbt_obj in nbt_files.items():
+            nbt_obj.write_file(nbt_file + ext)
 
     def create_gp_ts_map(self, dirname, dim):
         """Create Gnuplot Timestamp map for given dimension"""
