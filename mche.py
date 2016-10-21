@@ -788,7 +788,12 @@ class World:
     def get_end_cities(self):
         """
         Get zones of end cities
+
+        Zones are in blocks coordinates in the following format :
+        [(X0, Z0), (X1, Z1)]
         """
+        # TODO : generalise this function to get_struct_zones(nbt)
+        # to be able to delete structures other than end cities
         nbt_files = self.load_nbts("theend")
         (nbt_file, nbt_obj) = nbt_files.popitem()
         zones = list()
