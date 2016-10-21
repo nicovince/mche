@@ -21,6 +21,7 @@ def get_byte_seq(data, n):
     ret = unhexlify(fmt % data)
     return ret
 
+
 def bb_intersect(bb1, bb2):
     """
     Return true when two bounding box intersects
@@ -767,7 +768,8 @@ class World:
                     # Check if chunk intersect with element
                     if bb_intersect(bb_chunk, bb_elt):
                         nbt_obj["data"]["Features"].pop("%s" % elt)
-                        logging.info("Removed element %s from %s" % (elt, nbt_file))
+                        logging.info("Removed element %s from %s" %
+                                     (elt, nbt_file))
 
         # Write nbt files
         for nbt_file, nbt_obj in nbt_files.items():
@@ -818,7 +820,6 @@ class Mche:
             if not self.no_nbt:
                 # Update nbts to force regeneration of structures
                 self.update_nbts(dim, coords, self.suffix)
-
 
         # Remove gaps between chunks
         if self.remove_gaps:
@@ -950,7 +951,7 @@ class Mche:
         z2 = chunk_z * 16 + 15
         y1 = 0
         y2 = 255
-        return [x1,y1,z1,x2,y2,z2]
+        return [x1, y1, z1, x2, y2, z2]
 
 
 def get_coords_from_str(s):
@@ -1067,10 +1068,10 @@ def main():
                         "underscore (eg : X0xZ0_X1xZ1). "
                         "Multiple zones are separated by a comma.")
     parser.add_argument("--no-nbt", action="store_true", default=False,
-                        help="Do not edit NBT when deleting chunks, this saves "
-                        "some time if you know for sure that no structures are "
-                        "present in the deleted chunks or if you do not care for "
-                        "those structures.")
+                        help="Do not edit NBT when deleting chunks, this "
+                        "saves some time if you know for sure that no "
+                        "structures are present in the deleted chunks or if "
+                        "you do not care for those structures.")
     parser.add_argument("--dimension", action="store", dest="dimension",
                         choices=World.dimensions,
                         type=str, default="overworld",

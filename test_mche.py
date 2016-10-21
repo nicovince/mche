@@ -431,12 +431,13 @@ def test_create_world_heat_map():
     world = mche.World("/home/pi/mc/juco/")
     world.create_gp_ts_map(dirname, "overworld")
 
+
 def test_load_nbt():
     """NBT edition test"""
     errors = 0
     world = mche.World("/home/pi/mc/juco/")
-    elt_rm = [11,8]
-    elt_rm_str = "[%s,%s]" % ( elt_rm[0], elt_rm[1])
+    elt_rm = [11, 8]
+    elt_rm_str = "[%s,%s]" % (elt_rm[0], elt_rm[1])
     nbt_file = "/home/pi/mc/juco/data/Fortress.dat"
     world.update_nbts("nether", [elt_rm], ".mche")
     mche_file = "%s.mche" % nbt_file
@@ -460,20 +461,20 @@ if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    #test_create_rf_heat_map()
-    #test_create_world_heat_map()
-    #log_test(test_gaps)
-    #log_test(test_chunk_in_region)
-    #log_test(test_chunk_eq)
-    #log_test(test_region_eq)
-    #log_test(test_delete_chunk)
-    #log_test(test_coords_from_str)
-    #log_test(test_zone_from_str)
-    #log_test(test_coords_by_region)
-    #log_test(test_rm_gaps)
-    #log_test(test_rm_dim_gaps)
-    #log_test(test_bb)
-    #log_test(test_read_write)  # Long test
+    test_create_rf_heat_map()
+    test_create_world_heat_map()
+    log_test(test_gaps)
+    log_test(test_chunk_in_region)
+    log_test(test_chunk_eq)
+    log_test(test_region_eq)
+    log_test(test_delete_chunk)
+    log_test(test_coords_from_str)
+    log_test(test_zone_from_str)
+    log_test(test_coords_by_region)
+    log_test(test_rm_gaps)
+    log_test(test_rm_dim_gaps)
+    log_test(test_bb)
+    log_test(test_read_write)  # Long test
     log_test(test_load_nbt)
 
     if errors_cnt != 0:
