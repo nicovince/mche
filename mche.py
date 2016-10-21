@@ -714,9 +714,6 @@ class World:
                 rf.delete_chunk(x, z)
             rf.write(rf_name + ext)
 
-        # Update nbts to force regeneration of structures
-        self.update_nbts(dim, coords, ext)
-
     def load_nbts(self, dim):
         """
         Load NBT files required for dimension
@@ -818,6 +815,10 @@ class Mche:
         # Delete requested chunks
         if len(coords) > 0:
             self.world.delete_chunks(self.dimension, coords, self.suffix)
+            if not self.no_nbt:
+                # Update nbts to force regeneration of structures
+                self.update_nbts(dim, coords, self.suffix)
+
 
         # Remove gaps between chunks
         if self.remove_gaps:
@@ -1065,13 +1066,18 @@ def main():
                         "Coords of opposite blocks are separated by an "
                         "underscore (eg : X0xZ0_X1xZ1). "
                         "Multiple zones are separated by a comma.")
+    parser.add_argument("--no-nbt", action="store_true", default=False,
+                        help="Do not edit NBT when deleting chunks, this saves "
+                        "some time if you know for sure that no structures are "
+                        "present in the deleted chunks or if you do not care for "
+                        "those structures.")
     parser.add_argument("--dimension", action="store", dest="dimension",
                         choices=World.dimensions,
                         type=str, default="overworld",
                         help="Specify dimension to work on")
     parser.add_argument("--suffix", "-s", action="store", dest="suffix",
                         type=str, default="",
-                        help="Write mca file to suffixed file, default "
+                        help="Write mca/dat files to suffixed file, default "
                         "overwite")
     parser.add_argument("--remove-gaps", action="store_true", default=False,
                         help="Remove gaps in Region Files between chunks")
