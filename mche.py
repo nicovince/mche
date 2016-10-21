@@ -710,6 +710,8 @@ class World:
         # iterate on region file / list of chunk coords to be deleted
         for r, coords in chunks_by_region.items():
             rf_name = os.path.join(self.get_dim_dir(dim), r)
+            if not os.path.exists(rf_name):
+                continue
             rf = RegionFile(rf_name)
             for (x, z) in coords:
                 rf.delete_chunk(x, z)
@@ -721,6 +723,7 @@ class World:
 
         Return dictionary of nbt objects indexed by filename
         """
+        # TODO cache opened nbt file
         # Get list of nbt files that needs to be updated for dimension
         if dim == "overworld":
             dat_files = ["Monument.dat", "Stronghold.dat", "Mineshaft.dat"]
@@ -755,9 +758,10 @@ class World:
         # Load nbt files
         nbt_files = self.load_nbts(dim)
 
-        nbt_dir = os.path.join(self.world, "data")
         # Iterate over each nbt file
         for nbt_file, nbt_obj in nbt_files.items():
+            logging.info("Process %s" % nbt_file)
+            rm_elt = list()
             # Iterate over each element in nbt file
             for elt in nbt_obj["data"]["Features"]:
                 # Bounding box of current element
@@ -767,13 +771,33 @@ class World:
                     bb_chunk = Mche.get_bb(*coord)
                     # Check if chunk intersect with element
                     if bb_intersect(bb_chunk, bb_elt):
-                        nbt_obj["data"]["Features"].pop("%s" % elt)
-                        logging.info("Removed element %s from %s" %
-                                     (elt, nbt_file))
+                        logging.debug("Mark element %s from %s for deletion" %
+                                      (elt, nbt_file))
+                        # Mark element for deletion (do not delete element
+                        # while iterating)
+                        rm_elt.append(elt)
+            # Delete elements
+            for elt in set(rm_elt):
+                logging.debug("Delete element %s from %s" % (elt, nbt_file))
+                nbt_obj["data"]["Features"].pop("%s" % elt)
 
         # Write nbt files
         for nbt_file, nbt_obj in nbt_files.items():
             nbt_obj.write_file(nbt_file + ext)
+
+    def get_end_cities(self):
+        """
+        Get zones of end cities
+        """
+        nbt_files = self.load_nbts("theend")
+        (nbt_file, nbt_obj) = nbt_files.popitem()
+        zones = list()
+        # Get bounding boxes of end cities
+        for elt in nbt_obj["data"]["Features"]:
+            bb_elt = nbt_obj["data"]["Features"][elt]["BB"]
+            zone = [(bb_elt[0], bb_elt[2]), (bb_elt[3], bb_elt[5])]
+            zones.append(zone)
+        return zones
 
     def create_gp_ts_map(self, dirname, dim):
         """Create Gnuplot Timestamp map for given dimension"""
@@ -812,6 +836,29 @@ class Mche:
 
     def run(self):
         """Execute requested operations based on options"""
+        # Adds chunks of end cities to zones marked for deletion if processed
+        # dimension is the end, so they are processed with the rest of chunks
+        # marked for deletion.
+        # Otherwise process them immediately
+        if self.dimension == "theend" and self.reset_endcities:
+            self.del_zone_blk_coords.extend(self.world.get_end_cities())
+        elif self.reset_endcities:
+            end_cities_zones_blk_coords = self.world.get_end_cities()
+            end_cities_chunks = list()
+            for zone in end_cities_zones_blk_coords:
+                (coords_1, coords_2) = Mche.order_zone(*zone)
+                chunk_1 = World.get_chunk_coords(*coords_1)
+                chunk_2 = World.get_chunk_coords(*coords_2)
+                chunks = list(itertools.product(range(chunk_1[0],
+                                                      chunk_2[0]+1),
+                                                range(chunk_1[1],
+                                                      chunk_2[1]+1)))
+                end_cities_chunks.extend(chunks)
+            print end_cities_chunks
+            self.world.delete_chunks("theend", end_cities_chunks, self.suffix)
+            self.world.update_nbts("theend", end_cities_chunks, self.suffix)
+
+        # Compute list of chunk coordinates marked for deletion
         coords = self.get_delete_coords()
 
         # Delete requested chunks
@@ -819,11 +866,11 @@ class Mche:
             self.world.delete_chunks(self.dimension, coords, self.suffix)
             if not self.no_nbt:
                 # Update nbts to force regeneration of structures
-                self.update_nbts(dim, coords, self.suffix)
+                self.world.update_nbts(self.dimension, coords, self.suffix)
 
         # Remove gaps between chunks
         if self.remove_gaps:
-            world.remove_gaps()
+            world.remove_gaps(self.dimension, self.suffix)
 
         # Generate informations
         if self.info:
@@ -1072,6 +1119,8 @@ def main():
                         "saves some time if you know for sure that no "
                         "structures are present in the deleted chunks or if "
                         "you do not care for those structures.")
+    parser.add_argument("--reset-endcities", action="store_true", default=False,
+                        help="Reset end cities")
     parser.add_argument("--dimension", action="store", dest="dimension",
                         choices=World.dimensions,
                         type=str, default="overworld",
@@ -1079,7 +1128,8 @@ def main():
     parser.add_argument("--suffix", "-s", action="store", dest="suffix",
                         type=str, default="",
                         help="Write mca/dat files to suffixed file, default "
-                        "overwite")
+                        "overwite. This is used for debug purposes, DO NOT "
+                        "rely on this option for backups !!!")
     parser.add_argument("--remove-gaps", action="store_true", default=False,
                         help="Remove gaps in Region Files between chunks")
     parser.add_argument("--info", "-i", action="store_true", default=False,
@@ -1093,6 +1143,7 @@ def main():
     # Setup logger
     logging.basicConfig(filename="mche.log")
     logging.getLogger().addHandler(logging.StreamHandler())
+    logging.getLogger().setLevel(logging.INFO)
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 

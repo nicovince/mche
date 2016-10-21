@@ -461,8 +461,8 @@ if __name__ == "__main__":
     logging.basicConfig(filename="test_mche.log", filemode='w',
                         level=logging.DEBUG)
 
-    test_create_rf_heat_map()
-    test_create_world_heat_map()
+    #test_create_rf_heat_map()
+    #test_create_world_heat_map()
     log_test(test_gaps)
     log_test(test_chunk_in_region)
     log_test(test_chunk_eq)
