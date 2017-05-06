@@ -800,7 +800,7 @@ class World:
         # Get bounding boxes of end cities
         for elt in nbt_obj["data"]["Features"]:
             bb_elt = nbt_obj["data"]["Features"][elt]["BB"]
-            zone = [(bb_elt[0], bb_elt[2]), (bb_elt[3], bb_elt[5])]
+            zone = [(bb_elt[0]-1, bb_elt[2]-1), (bb_elt[3]+1, bb_elt[5]+1)]
             zones.append(zone)
         return zones
 
