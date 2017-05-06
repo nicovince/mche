@@ -838,6 +838,7 @@ class Mche:
         """Initialize object with options parsed from command line"""
         self.__dict__ = opts
         self.world = World(self.world_name)
+        self.del_zone_blk_coords = list()
 
     def run(self):
         """Execute requested operations based on options"""
