@@ -6,6 +6,9 @@ import logging
 import itertools
 import argparse
 import nbt
+from io import BytesIO
+import zlib
+import gzip
 from binascii import hexlify
 from binascii import unhexlify
 
@@ -42,6 +45,12 @@ def bb_intersect(bb1, bb2):
 
 
 class Chunk:
+    COMPRESSION_NONE = 0
+    """Constant indicating that the chunk is not compressed."""
+    COMPRESSION_GZIP = 1
+    """Constant indicating that the chunk is GZip compressed."""
+    COMPRESSION_ZLIB = 2
+    """Constant indicating that the chunk is zlib compressed."""
     """
     Chunk object stored in RegionFile
     """
@@ -61,10 +70,13 @@ class Chunk:
         # chunk_data includes padding to multiple of sector size
         # length : 4 bytes
         # compression kind : 1 byte
+        self.compression = None
         # chunk payload : length - 1 bytes
         self.chunk_data = None
         # length of chunk data (without padding)
         self.length = None
+        # NBT data of chunk
+        self.nbt = None
 
     def __eq__(self, other):
         """
@@ -77,7 +89,9 @@ class Chunk:
             self.z == other.z and \
             self.sector_count == other.sector_count and \
             self.timestamp == other.timestamp and \
+            self.compression == other.compression and \
             self.chunk_data == other.chunk_data and \
+            self.nbt == other.nbt and \
             self.length == other.length
 
     def __ne__(self, other):
@@ -89,6 +103,7 @@ class Chunk:
                                                            self.offset,
                                                            self.sector_count)
         s = s + " - timestamp:%d - length:%d" % (self.timestamp, self.length)
+        s = s + " - compression:%r" % (self.compression)
         s = s + " - hash(chunk_data):%d" % self.chunk_data.__hash__()
         return s
 
@@ -103,6 +118,27 @@ class Chunk:
         """Return True if chunk has been generated"""
         return not (self.offset == 0 and self.sector_count == 0 and
                     self.timestamp == 0)
+
+    def parse_chunk_datas(self):
+        """Parse chunk data through NBT processor"""
+        # Make sure header and chunk datas have been read
+        if self.chunk_data is None:
+            return
+        compressed_data = self.chunk_data[5:]
+        if self.compression == self.COMPRESSION_GZIP:
+            f = gzip.GzipFile(fileobj=BytesIO(compressed_data))
+            chunk = bytes(f.read())
+            f.close()
+        elif (self.compression == self.COMPRESSION_ZLIB):
+            chunk = zlib.decompress(compressed_data)
+        self.nbt = nbt.nbt.NBTFile(buffer=BytesIO(chunk))
+
+    def get_inhabited_time(self):
+        """Cumulative number of ticks players has been in chunk"""
+        if self.nbt is None:
+            return 0
+        else:
+            return int(str(self.nbt['Level']['InhabitedTime']))
 
 
 class RegionFile:
@@ -200,6 +236,7 @@ class RegionFile:
             # chunk index in chunks list
             chunk_idx = x_rel + 32*z_rel
             size = 4096 * c.sector_count
+            c.length = 0
             if size > 0:
                 # chunk generated
                 if f.tell() < c.offset * 4096:
@@ -216,6 +253,8 @@ class RegionFile:
                 c.chunk_data = f.read(size)
                 length = int(hexlify(c.chunk_data[0:4]), 16)
                 c.length = length
+                compression = int(hexlify(c.chunk_data[4]), 16)
+                c.compression = compression
                 if length > size:
                     logging.warning("chunk (%d, %d) uses %d sector "
                                     "(%d bytes), chunk data length is %d"
@@ -485,6 +524,17 @@ class RegionFile:
             ddata[c.x][c.z] = c.timestamp
         return ddata
 
+    def get_inhabited_datas(self):
+        """Return List of triplet for inhabited time (x,z,t)"""
+        # Build data
+        ddata = dict()
+        for c in self.chunks:
+            if c.x not in ddata:
+                ddata[c.x] = dict()
+            ddata[c.x][c.z] = c.get_inhabited_time()
+        return ddata
+
+
     def create_gp_ts_map(self, dirname):
         """
         Create Gnuplot files to draw heatmap of chunk's timestamps
@@ -498,6 +548,12 @@ class RegionFile:
         file_prefix = os.path.basename(re.sub(".mca", "",
                                               self.region_filename))
         Mche.create_heatmap(timestamp_datas, dirname, file_prefix)
+
+    def biome_info(self):
+        """Get Biome info of each chunk in region file"""
+        for c in self.chunks:
+            c.parse_chunk_datas()
+
 
 
 class World:
@@ -576,6 +632,7 @@ class World:
             total += gap
             print " - %s : %d bytes" % (os.path.basename(f), gap)
         print "-> total gaps in %s : %d bytes" % (dimension, total)
+
 
     def remove_gaps(self, dim, suffix=None):
         """
@@ -830,6 +887,32 @@ class World:
 
         Mche.create_heatmap(datas, dirname, dim)
 
+    def biome_info(self, dim):
+        """Get biome informations from dimension and store in dirname"""
+        # Initial column dictionary
+        ranges = self.get_region_idx_range(dim)
+        ((min_x, max_x), (min_z, max_z)) = ranges
+        init_dict = {key: 0 for key in range(32*min_z, 32*(max_z+1))}
+
+        # Initialize full dict
+        datas = dict()
+        for x in range(32*min_x, 32*(max_x+1)):
+            datas[x] = dict(init_dict)
+        # Fill dict with actual values
+        files = self.get_region_files(dim)
+        for f in files:
+            rf = RegionFile(f)
+            rf_biome_info = rf.biome_info()
+            rf_data = rf.get_inhabited_datas()
+            # merge
+            for (key, item_dict) in rf_data.items():
+                for (z, ts) in item_dict.items():
+                    assert datas[key][z] == 0
+                    datas[key][z] = ts
+
+        Mche.create_heatmap(datas, "./", dim, False)
+
+
 
 class Mche:
     """Defines methods to run script according to options passed"""
@@ -890,6 +973,10 @@ class Mche:
             # gaps
             self.world.count_gaps(self.dimension)
 
+        # Biomes infos
+        if self.biome_info:
+            self.world.biome_info(self.dimension)
+
     @staticmethod
     def order_zone(coords1, coords2):
         """Return tuple of coords ordered (top-left, bottom-right)"""
@@ -939,11 +1026,11 @@ class Mche:
         return list(set(ret))
 
     @staticmethod
-    def create_heatmap(datas, path, file_prefix):
+    def create_heatmap(datas, path, file_prefix, date=True):
         """
         Create Gnuplot script for heatmap of datas
 
-        datas : list of triplet to draw heatmap from, first two are corods,
+        datas : dictionary of coords for timestamp
         third is heatness
         path : directory where datas are saved (.dat, .gnu)
         file_prefix : filename prefix where datas/script are stored
@@ -965,7 +1052,9 @@ class Mche:
         png_file = file_prefix + ".png"
         with open(gp_file, "wb") as f:
             # gnuplot count number of second since 2000, != than epoch
-            gp_offset = 946684800
+            gp_offset = 0
+            if date:
+                gp_offset = 946684800
             f.write("set terminal png\n")
             f.write('set title "Heat map of chunks modification dates"\n')
             f.write('set output "%s"\n' % png_file)
@@ -973,9 +1062,10 @@ class Mche:
 
             # palette
             f.write('# Configure palette\n')
-            f.write('set cbdata time\n')
-            f.write('set format cb "\%m-\%Y"\n')
-            f.write('set timefmt "\%s"\n')
+            if date:
+                f.write('set cbdata time\n')
+                f.write('set format cb "\%m-\%Y"\n')
+                f.write('set timefmt "\%s"\n')
             f.write("set cbrange [%d:%d]\n" % (min(ts)-gp_offset,
                                                max(ts)-gp_offset))
             f.write("\n")
@@ -1143,6 +1233,8 @@ def main():
                         "between chunks, number of chunks generated, map of "
                         "chunks generated colored by timestamp date of last "
                         "modification")
+    parser.add_argument("--biome-info", "-b", action="store_true", default=False,
+                        help="Gather informations on biomes")
 
     args = parser.parse_args()
 
