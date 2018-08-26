@@ -1021,12 +1021,13 @@ class World:
                                                   ["biome", "inhabited_time"])
         fig, ax = plt.subplots()
         ax.set(title="biomes datas")
-        Mche.mpl_heatmap(fig, ax, biomes, bb)
+        biomes_datas = Biomes()
+        Mche.mpl_heatmap(fig, ax, biomes, bb, cmap=biomes_datas.get_cmap())
 
         fig, ax = plt.subplots()
         ax.set(title="inhabited time")
         time_range = get_image_range_clamped(inhabited_time, 99.9)
-        Mche.mpl_heatmap(fig, ax, inhabited_time, bb, time_range)
+        Mche.mpl_heatmap(fig, ax, inhabited_time, bb, color_range=time_range)
 
 
 class Mche:
@@ -1037,7 +1038,6 @@ class Mche:
         self.__dict__ = opts
         self.world = World(self.world_name)
         self.del_zone_blk_coords = list()
-
     def run(self):
         """Execute requested operations based on options"""
         # Adds chunks of end cities to zones marked for deletion if processed
@@ -1198,7 +1198,7 @@ class Mche:
             f.write("# vim: set syntax=gnuplot:\n")
 
     @staticmethod
-    def mpl_heatmap(fig, ax, image, bb, color_range=None):
+    def mpl_heatmap(fig, ax, image, bb, color_range=None, cmap=None):
         logging.info("Rendering heatmap")
         (min_x, max_x, min_z, max_z) = bb
         #ax.set_xlim(min_z, max_z)
@@ -1206,7 +1206,7 @@ class Mche:
 
         if color_range is not None:
             logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
-        im = ax.imshow(image, clim=color_range, extent=bb)
+        im = ax.imshow(image, clim=color_range, extent=bb, cmap=cmap)
         cbar = fig.colorbar(im)
         plt.show()
 
@@ -1223,6 +1223,88 @@ class Mche:
         y1 = 0
         y2 = 255
         return [x1, y1, z1, x2, y2, z2]
+
+class Biome(object):
+    def __init__(self, biome_id, name, color):
+        self.name = name
+        self.biome_id = biome_id
+        self.color = color
+
+class Biomes(object):
+    def __init__(self):
+        self.biomes = [Biome(0, "Ocean", "#000070"),
+		       Biome(1, "Plains", "#8DB360"),
+		       Biome(2, "Desert", "#FA9418"),
+		       Biome(3, "Extreme Hills", "#606060"),
+		       Biome(4, "Forest", "#056621"),
+		       Biome(5, "Taiga", "#0B6659"),
+		       Biome(6, "Swampland", "#07F9B2"),
+		       Biome(7, "River", "#0000FF"),
+		       Biome(8, "Hell", "#FF0000"),
+		       Biome(9, "The End", "#8080FF"),
+		       Biome(10, "FrozenOcean", "#9090A0"),
+		       Biome(11, "FrozenRiver", "#A0A0FF"),
+		       Biome(12, "Ice Plains", "#FFFFFF"),
+		       Biome(13, "Ice Mountains", "#A0A0A0"),
+		       Biome(14, "MushroomIsland", "#FF00FF"),
+		       Biome(15, "MushroomIslandShore", "#A000FF"),
+		       Biome(16, "Beach", "#FADE55"),
+		       Biome(17, "DesertHills", "#D25F12"),
+		       Biome(18, "ForestHills", "#22551C"),
+		       Biome(19, "TaigaHills", "#163933"),
+		       Biome(20, "Extreme Hills Edge", "#72789A"),
+		       Biome(21, "Jungle", "#537B09"),
+		       Biome(22, "JungleHills", "#2C4205"),
+		       Biome(23, "JungleEdge", "#628B17"),
+		       Biome(24, "Deep Ocean", "#000030"),
+		       Biome(25, "Stone Beach", "#A2A284"),
+		       Biome(26, "Cold Beach", "#FAF0C0"),
+		       Biome(27, "Birch Forest", "#307444"),
+		       Biome(28, "Birch Forest Hills", "#1F5F32"),
+		       Biome(29, "Roofed Forest", "#40511A"),
+		       Biome(30, "Cold Taiga", "#31554A"),
+		       Biome(31, "Cold Taiga Hills", "#243F36"),
+		       Biome(32, "Mega Taiga", "#596651"),
+		       Biome(33, "Mega Taiga Hills", "#545F3E"),
+		       Biome(34, "Extreme Hills+", "#507050"),
+		       Biome(35, "Savanna", "#BDB25F"),
+		       Biome(36, "Savanna Plateau", "#A79D64"),
+		       Biome(37, "Mesa", "#D94515"),
+		       Biome(38, "Mesa Plateau F", "#B09765"),
+		       Biome(39, "Mesa Plateau", "#CA8C65"),
+		       Biome(127, "The Void", "#000001"),
+		       Biome(129, "Sunflower Plains", "#B5DB88"),
+		       Biome(130, "Desert M", "#FFBC40"),
+		       Biome(131, "Extreme Hills M", "#888888"),
+		       Biome(132, "Flower Forest", "#6A7425"),
+		       Biome(133, "Taiga M", "#596651"),
+		       Biome(134, "Swampland M", "#2FFFDA"),
+		       Biome(140, "Ice Plains Spikes", "#B4DCDC"),
+		       Biome(149, "Jungle M", "#7BA331"),
+		       Biome(151, "Jungle Edge M", "#8AB33F"),
+		       Biome(155, "Birch Forest M", "#589C6C"),
+	               Biome(156, "Birch Forest Hills M", "#47875A"),
+                       Biome(157, "Roofed Forest M", "#687942"),
+                       Biome(158, "Cold Taiga M", "#597D72"),
+                       Biome(160, "Mega Spruce Taiga", "#6B5F4C"),
+                       Biome(161, "Redwood Taiga Hills M", "#6D7766"),
+                       Biome(162, "Extreme Hills+ M", "#789878"),
+                       Biome(163, "Savanna M", "#E5DA87"),
+                       Biome(164, "Savanna Plateau M", "#CFC58C"),
+                       Biome(165, "Mesa (Bryce)", "#FF6D3D"),
+                       Biome(166, "Mesa Plateau F M", "#D8BF8D"),
+                       Biome(167, "Mesa Plateau M", "#F2B48D")]
+
+    def get_cmap(self):
+        max_id = max([b.biome_id for b in self.biomes])
+        colors = ["#000000"] * (max_id + 1)
+        for b in self.biomes:
+            colors[b.biome_id] = b.color
+        #colors = ['#F2B48D'] * len(colors)
+        (cmap, norm) = matplotlib.colors.from_levels_and_colors(range(-1, max_id +1),
+                                                                colors)
+        return cmap
+
 
 
 def get_coords_from_str(s):
