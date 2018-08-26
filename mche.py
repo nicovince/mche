@@ -999,11 +999,6 @@ class World:
             # Merge biomes
             rf_biomes = rf.get_biomes()
             merge_coords_dict(biomes_datas, rf_biomes)
-            ## merge
-            #for (key, item_dict) in rf_inhabited_time.items():
-            #    for (z, ts) in item_dict.items():
-            #        assert datas[key][z] == 0
-            #        datas[key][z] = ts
         sys.stdout.write("\n")
 
         self.biomes_datas = biomes_datas
