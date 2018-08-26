@@ -14,31 +14,36 @@ from binascii import unhexlify
 import matplotlib
 import matplotlib.pyplot as plt
 
-def dict_to_mpl_data(data, bb):
+def dict_to_mpl_data(data, bb, fields):
     """Return data contained in dictionnary potable by matplotlib
 
     d: two level dictionnary indexed by coordinates
     bb: bounding box of data contained in dictionnary
     """
     (min_x, max_x, min_z, max_z) = bb
-    image = []
+    images = [list() for f in fields]
     row_width = max_z - min_z
-    print("row width : %d" % (row_width))
     for x in range(min_x, max_x):
-        row = []
+        rows = [list() for f in fields]
         if x not in data.keys():
             # No data have been generated for this row, put dummy datas
-            row = [-1] * row_width
+            for r in rows:
+                r.extend([-1] * row_width)
         else:
             for z in range(min_z, max_z):
-                heat_data = -1
+                heat_datas = [-1] * len(fields)
                 if z in data[x].keys():
-                    heat_data = data[x][z]
-                row.append(heat_data)
-        assert(len(row) == row_width)
+                    heat_datas = list()
+                    for f in fields:
+                        heat_datas.append(data[x][z][f])
+                for r,hd in zip(rows, heat_datas):
+                    r.append(hd)
+                #rows.append(heat_datas)
+        assert(len(rows[0]) == row_width), "len(rows):%d" % len(rows)
 
-        image.append(row)
-    return image
+        for (im, row) in zip(images, rows):
+            im.append(row)
+    return images
 
 def get_image_range_clamped(image, clamp_percent):
     """Get range values of image to clamp outliers
@@ -628,11 +633,18 @@ class RegionFile:
                                               self.region_filename))
         Mche.create_heatmap(timestamp_datas, dirname, file_prefix)
 
-    def biome_info(self):
-        """Get Biome info of each chunk in region file"""
+    def get_chunks_infos(self):
+        """Get infos of each chunk in region file"""
+        chunks_infos = dict()
         for c in self.chunks:
             c.parse_chunk_datas()
-
+            if c.x not in chunks_infos:
+                chunks_infos[c.x] = dict()
+            if c.z not in chunks_infos[c.x]:
+                chunks_infos[c.x][c.z] = dict()
+            chunks_infos[c.x][c.z]['inhabited_time'] = c.get_inhabited_time()
+            chunks_infos[c.x][c.z]['biome'] = c.get_main_biome()
+        return chunks_infos
 
 
 class World:
@@ -981,6 +993,7 @@ class World:
         # Fill dict with actual values
         biomes_datas = dict()
         inhabited_time_datas = dict()
+        chunks_infos = dict()
         files = self.get_region_files(dim)
         logging.info("Read Files to extract biomes data")
         i = 1
@@ -990,7 +1003,8 @@ class World:
             i += 1
             # Read file and biome info
             rf = RegionFile(f)
-            rf_biome_info = rf.biome_info()
+            rf_chunks_infos = rf.get_chunks_infos()
+            merge_coords_dict(chunks_infos, rf_chunks_infos)
 
             # Merge inhabited time
             rf_inhabited_time = rf.get_inhabited_datas()
@@ -1003,10 +1017,8 @@ class World:
 
         self.biomes_datas = biomes_datas
         bb = [min_x*32, (max_x+1)*32, min_z*32, (max_z+1)*32]
-        logging.info("Generate biome heatmap array")
-        biomes = dict_to_mpl_data(biomes_datas, bb)
-        logging.info("Generate inhabited time heatmap array")
-        inhabited_time = dict_to_mpl_data(inhabited_time_datas, bb)
+        biomes, inhabited_time = dict_to_mpl_data(chunks_infos, bb,
+                                                  ["biome", "inhabited_time"])
         fig, ax = plt.subplots()
         ax.set(title="biomes datas")
         Mche.mpl_heatmap(fig, ax, biomes, bb)
