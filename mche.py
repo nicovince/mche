@@ -1014,12 +1014,12 @@ class World:
         inhabited_time = dict_to_mpl_data(inhabited_time_datas, bb)
         fig, ax = plt.subplots()
         ax.set(title="biomes datas")
-        Mche.mpl_heatmap(ax, biomes, bb)
+        Mche.mpl_heatmap(fig, ax, biomes, bb)
 
         fig, ax = plt.subplots()
         ax.set(title="inhabited time")
         time_range = get_image_range_clamped(inhabited_time, 99.9)
-        Mche.mpl_heatmap(ax, inhabited_time, bb, time_range)
+        Mche.mpl_heatmap(fig, ax, inhabited_time, bb, time_range)
 
 
 class Mche:
@@ -1191,18 +1191,16 @@ class Mche:
             f.write("# vim: set syntax=gnuplot:\n")
 
     @staticmethod
-    def mpl_heatmap(ax, image, bb, color_range=None):
+    def mpl_heatmap(fig, ax, image, bb, color_range=None):
         logging.info("Rendering heatmap")
-        #fig, ax = plt.subplots()
         (min_x, max_x, min_z, max_z) = bb
         #ax.set_xlim(min_z, max_z)
         #ax.set_ylim(min_x, max_x)
 
-        #im = ax.imshow(image)
-        mesh = ax.pcolormesh(image)
         if color_range is not None:
             logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
-            mesh.set_clim(color_range)
+        im = ax.imshow(image, clim=color_range, extent=bb)
+        cbar = fig.colorbar(im)
         plt.show()
 
     @staticmethod
