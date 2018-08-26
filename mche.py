@@ -11,6 +11,57 @@ import zlib
 import gzip
 from binascii import hexlify
 from binascii import unhexlify
+import matplotlib
+import matplotlib.pyplot as plt
+
+def dict_to_mpl_data(data, bb):
+    """Return data contained in dictionnary potable by matplotlib
+
+    d: two level dictionnary indexed by coordinates
+    bb: bounding box of data contained in dictionnary
+    """
+    (min_x, max_x, min_z, max_z) = bb
+    image = []
+    row_width = max_z - min_z
+    print("row width : %d" % (row_width))
+    for x in range(min_x, max_x):
+        row = []
+        if x not in data.keys():
+            # No data have been generated for this row, put dummy datas
+            row = [-1] * row_width
+        else:
+            for z in range(min_z, max_z):
+                heat_data = -1
+                if z in data[x].keys():
+                    heat_data = data[x][z]
+                row.append(heat_data)
+        assert(len(row) == row_width)
+
+        image.append(row)
+    return image
+
+def get_image_range_clamped(image, clamp_percent):
+    """Get range values of image to clamp outliers
+
+    image: array of pixels
+    clamp_percent: percentage of data to keep
+    """
+    image_values = list()
+    for sublist in image:
+        for item in sublist:
+            image_values.append(item)
+    image_values.sort()
+    clamp_idx = int(clamp_percent*len(image_values)/100)
+    print("clamp at %d/%d" % (clamp_idx, len(image_values)))
+    return (image_values[0], image_values[clamp_idx])
+
+
+def merge_coords_dict(coords_inout, coords_in):
+    """Merge dict of coordinates to inout"""
+    for (x, item_dict) in coords_in.items():
+        if x not in coords_inout:
+            coords_inout[x] = dict()
+        coords_inout[x].update(item_dict)
 
 
 def get_byte_seq(data, n):
@@ -140,6 +191,24 @@ class Chunk:
         else:
             return int(str(self.nbt['Level']['InhabitedTime']))
 
+    def get_main_biome(self):
+        """Return majoritary biome of chunk"""
+        d = dict()
+        if self.nbt is None:
+            # Chunk not generated
+            return -1
+        else:
+            biomes = self.nbt['Level']['Biomes']
+            histogram_biomes = dict()
+            for b in set(biomes):
+                histogram_biomes[b] = biomes.count(b)
+            # Sort biomes per occurence count
+            sorted_biomes = list()
+            for key, value in sorted(histogram_biomes.iteritems(), key=lambda (k,v): (v,k)):
+                sorted_biomes.append((key, value))
+            # Return biomes with the most occurences in the chunk
+            return sorted_biomes[-1][0]
+
 
 class RegionFile:
     """
@@ -245,7 +314,7 @@ class RegionFile:
                     # multiple of sector size, the following chunks are not
                     # relocated
                     gap = c.offset * 4096 - f.tell()
-                    logging.warning("Region %s, %d bytes gap before %s"
+                    logging.debug("Region %s, %d bytes gap before %s"
                                     % (self, gap, c))
                     self.has_gap = True
                     f.seek(c.offset * 4096)
@@ -353,6 +422,7 @@ class RegionFile:
         """
         # Index of chunk in chunks list
         chunk_idx = (x % 32) + 32*(z % 32)
+        print "index : %d" % chunk_idx
         print "offset : %d" % self.chunks[chunk_idx].offset
         print "sector count : %d" % self.chunks[chunk_idx].sector_count
         print "x : %d" % self.chunks[chunk_idx].x
@@ -525,7 +595,7 @@ class RegionFile:
         return ddata
 
     def get_inhabited_datas(self):
-        """Return List of triplet for inhabited time (x,z,t)"""
+        """Return dictionary inhabited time, indexed by coords"""
         # Build data
         ddata = dict()
         for c in self.chunks:
@@ -534,6 +604,15 @@ class RegionFile:
             ddata[c.x][c.z] = c.get_inhabited_time()
         return ddata
 
+    def get_biomes(self):
+        # Build data
+        ddata = dict()
+        for c in self.chunks:
+            biome = c.get_main_biome()
+            if c.x not in ddata:
+                ddata[c.x] = dict()
+            ddata[c.x][c.z] = biome
+        return ddata
 
     def create_gp_ts_map(self, dirname):
         """
@@ -898,20 +977,49 @@ class World:
         datas = dict()
         for x in range(32*min_x, 32*(max_x+1)):
             datas[x] = dict(init_dict)
+
         # Fill dict with actual values
+        biomes_datas = dict()
+        inhabited_time_datas = dict()
         files = self.get_region_files(dim)
+        logging.info("Read Files to extract biomes data")
+        i = 1
         for f in files:
+            sys.stdout.write("\rFiles read %d/%d" % (i, len(files)))
+            sys.stdout.flush()
+            i += 1
+            # Read file and biome info
             rf = RegionFile(f)
             rf_biome_info = rf.biome_info()
-            rf_data = rf.get_inhabited_datas()
-            # merge
-            for (key, item_dict) in rf_data.items():
-                for (z, ts) in item_dict.items():
-                    assert datas[key][z] == 0
-                    datas[key][z] = ts
 
-        Mche.create_heatmap(datas, "./", dim, False)
+            # Merge inhabited time
+            rf_inhabited_time = rf.get_inhabited_datas()
+            merge_coords_dict(inhabited_time_datas, rf_inhabited_time)
 
+            # Merge biomes
+            rf_biomes = rf.get_biomes()
+            merge_coords_dict(biomes_datas, rf_biomes)
+            ## merge
+            #for (key, item_dict) in rf_inhabited_time.items():
+            #    for (z, ts) in item_dict.items():
+            #        assert datas[key][z] == 0
+            #        datas[key][z] = ts
+        sys.stdout.write("\n")
+
+        self.biomes_datas = biomes_datas
+        bb = [min_x*32, (max_x+1)*32, min_z*32, (max_z+1)*32]
+        logging.info("Generate biome heatmap array")
+        biomes = dict_to_mpl_data(biomes_datas, bb)
+        logging.info("Generate inhabited time heatmap array")
+        inhabited_time = dict_to_mpl_data(inhabited_time_datas, bb)
+        fig, ax = plt.subplots()
+        ax.set(title="biomes datas")
+        Mche.mpl_heatmap(ax, biomes, bb)
+
+        fig, ax = plt.subplots()
+        ax.set(title="inhabited time")
+        time_range = get_image_range_clamped(inhabited_time, 99.9)
+        Mche.mpl_heatmap(ax, inhabited_time, bb, time_range)
 
 
 class Mche:
@@ -1081,6 +1189,21 @@ class Mche:
             f.write("plot '%s' using 1:2:($3-%d) with image notitle\n" %
                     (os.path.basename(dat_file), gp_offset))
             f.write("# vim: set syntax=gnuplot:\n")
+
+    @staticmethod
+    def mpl_heatmap(ax, image, bb, color_range=None):
+        logging.info("Rendering heatmap")
+        #fig, ax = plt.subplots()
+        (min_x, max_x, min_z, max_z) = bb
+        #ax.set_xlim(min_z, max_z)
+        #ax.set_ylim(min_x, max_x)
+
+        #im = ax.imshow(image)
+        mesh = ax.pcolormesh(image)
+        if color_range is not None:
+            logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
+            mesh.set_clim(color_range)
+        plt.show()
 
     @staticmethod
     def get_bb(chunk_x, chunk_z):
