@@ -12,13 +12,16 @@ import gzip
 from binascii import hexlify
 from binascii import unhexlify
 import matplotlib
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 
 def dict_to_mpl_data(data, bb, fields):
-    """Return data contained in dictionnary potable by matplotlib
+    """Return data contained in dictionnary plotable by matplotlib as heatmap
 
-    d: two level dictionnary indexed by coordinates
+    data: two level dictionnary indexed by coordinates
     bb: bounding box of data contained in dictionnary
+    fields: list of field to extract in data
     """
     (min_x, max_x, min_z, max_z) = bb
     images = [list() for f in fields]
@@ -45,6 +48,52 @@ def dict_to_mpl_data(data, bb, fields):
             im.append(row)
     return images
 
+def dict_to_mpl_img(data, bb, fields, color_mapping):
+    """Return data contained in dictionnary plotable by matplotlib as image
+
+    data: two level dictionnary indexed by coordinates
+    bb: bounding box of data contained in dictionnary
+    fields: list of field to extract in data
+    """
+    dummy = [0,0,0]
+    (min_x, max_x, min_z, max_z) = bb
+    row_width = max_z - min_z
+    height = max_x - min_x
+    images = [np.arange(row_width*height*len(dummy)).reshape(height, row_width, len(dummy)) for f in fields]
+    
+    x_i = 0
+    for x in range(min_x, max_x):
+        rows = [list() for f in fields]
+        if x not in data.keys():
+            # No data have been generated for this row, put dummy datas
+            for r in rows:
+                r.extend([dummy] * row_width)
+        else:
+            for z in range(min_z, max_z):
+                pixel_datas = [dummy] * len(fields)
+                if z in data[x].keys():
+                    # list of pixel for each field
+                    pixel_datas = list()
+                    for f in fields:
+                        # Get pixel value from color mapping
+                        pix_data = data[x][z][f]
+                        if pix_data in color_mapping:
+                            pixel_datas.append(color_mapping[pix_data])
+                        else:
+                            pixel_datas.append(dummy)
+                # Adds pixels to each row of each image
+                for r,hd in zip(rows, pixel_datas):
+                    r.append(hd)
+        assert(len(rows[0]) == row_width), "len(rows):%d" % len(rows[0])
+
+        # adds row to each image
+        for (im, row) in zip(images, rows):
+            #im.append(row)
+            im[x_i] = row
+        x_i += 1
+    return images
+
+
 def get_image_range_clamped(image, clamp_percent):
     """Get range values of image to clamp outliers
 
@@ -56,7 +105,7 @@ def get_image_range_clamped(image, clamp_percent):
         for item in sublist:
             image_values.append(item)
     image_values.sort()
-    clamp_idx = int(clamp_percent*len(image_values)/100)
+    clamp_idx = min(int(clamp_percent*len(image_values)/100), len(image_values)-1)
     print("clamp at %d/%d" % (clamp_idx, len(image_values)))
     return (image_values[0], image_values[clamp_idx])
 
@@ -99,6 +148,30 @@ def bb_intersect(bb1, bb2):
 
     return True
 
+def get_value_above(l, v):
+    """Get value in l which is greater or equal than v
+
+    v may not be present in l
+    """
+    tmp = list(l)
+    tmp.sort()
+    for e in tmp:
+        if e >= v:
+            return e
+    return None
+
+def get_value_below(l, v):
+    """Get value in l which is lesser or equal than v
+
+    v may not be present in l
+    """
+    tmp = list(l)
+    tmp.sort()
+    tmp.reverse()
+    for e in tmp:
+        if e <= v:
+            return e
+    return None
 
 class Chunk:
     COMPRESSION_NONE = 0
@@ -203,7 +276,7 @@ class Chunk:
             # Chunk not generated
             return -1
         else:
-            biomes = self.nbt['Level']['Biomes']
+            biomes = self.get_biomes()
             histogram_biomes = dict()
             for b in set(biomes):
                 histogram_biomes[b] = biomes.count(b)
@@ -214,6 +287,63 @@ class Chunk:
             # Return biomes with the most occurences in the chunk
             return sorted_biomes[-1][0]
 
+    def get_biomes(self):
+        """Return biomes list of chunk"""
+        if self.nbt is None:
+            return None
+        return self.nbt['Level']['Biomes']
+
+
+class ChunkMatcher(object):
+    @staticmethod
+    def default():
+        return ChunkMatcher([])
+
+    def __init__(self, biomes_filt, block_cnt_thresh=16*16, inhabited_thresh=None, bb=None):
+        """Create Chunk Filter
+
+        biomes_filt: list of biomes which can trigger a tag
+        block_cnt_thresh: number of block in biomes list needed to tag chunk
+        inhabited_thresh: maximum time spent in chunk
+        bb: bounding box containing the part of the map to be processed for tagging
+        """
+        self.biomes_filt = biomes_filt
+        self.block_cnt_thresh = block_cnt_thresh
+        self.inhabited_thresh = inhabited_thresh
+        self.bb = bb
+
+    def match(self, chunk):
+        """Return Boolean if chunk matches criterias"""
+        if chunk.nbt is None:
+            return False
+        # Check bounding box
+        if self.bb is not None:
+            [bb_x_min, bb_x_max, bb_z_min, bb_z_max] = self.bb
+            if not(chunk.x >= bb_x_min and chunk.x <= bb_x_max
+                   and chunk.z >= bb_z_min and self.z <= bb_z_max):
+                # chunk is outside of bounding box
+                print("outside of bounding box")
+                return False
+
+        # Check inhabited time
+        if self.inhabited_thresh is not None:
+            inhabited_time = chunk.get_inhabited_time()
+            if inhabited_time > self.inhabited_thresh:
+                # Chunk has lived for too long
+                return False
+
+        # Count biomes
+        n = 0
+        biomes = chunk.get_biomes()
+        for b in biomes:
+            if b in self.biomes_filt:
+                n += 1
+        if n < self.block_cnt_thresh:
+            # Not enough biomes
+            return False
+
+        return True
+
 
 class RegionFile:
     """
@@ -221,12 +351,13 @@ class RegionFile:
 
     Load them, prune a chunk, save to file
     """
-    def __init__(self, filename, read=True):
+    def __init__(self, filename, read=True, chunk_matcher=ChunkMatcher.default()):
         """
         Initialize instance with region filename attribute
         """
         self.region_filename = filename
         self.x, self.z = self.get_coords()
+        self.chunk_matcher = chunk_matcher
         self.has_gap = False
         self.chunks = None
         self.location_field = None
@@ -610,6 +741,7 @@ class RegionFile:
         return ddata
 
     def get_biomes(self):
+        """Return dictionnary of biomes indexed by coordinates for region file"""
         # Build data
         ddata = dict()
         for c in self.chunks:
@@ -636,6 +768,7 @@ class RegionFile:
     def get_chunks_infos(self):
         """Get infos of each chunk in region file"""
         chunks_infos = dict()
+        # Iterate over chunks
         for c in self.chunks:
             c.parse_chunk_datas()
             if c.x not in chunks_infos:
@@ -644,6 +777,7 @@ class RegionFile:
                 chunks_infos[c.x][c.z] = dict()
             chunks_infos[c.x][c.z]['inhabited_time'] = c.get_inhabited_time()
             chunks_infos[c.x][c.z]['biome'] = c.get_main_biome()
+            chunks_infos[c.x][c.z]['chunk_tagged'] = int(self.chunk_matcher.match(c))
         return chunks_infos
 
 
@@ -655,11 +789,12 @@ class World:
     """
     dimensions = ["overworld", "nether", "theend"]
 
-    def __init__(self, world_pathname):
+    def __init__(self, world_pathname, mche):
         """
         Initialize class with path to world which will be edited
         """
         self.world = world_pathname
+        self.mche = mche
         if not os.path.exists(self.world):
             raise IOError
 
@@ -990,9 +1125,10 @@ class World:
         for x in range(32*min_x, 32*(max_x+1)):
             datas[x] = dict(init_dict)
 
+        # Chunk Matcher
+        chunk_matcher = ChunkMatcher([0], int(80*16*16/100), 5000)
+
         # Fill dict with actual values
-        biomes_datas = dict()
-        inhabited_time_datas = dict()
         chunks_infos = dict()
         files = self.get_region_files(dim)
         logging.info("Read Files to extract biomes data")
@@ -1002,32 +1138,36 @@ class World:
             sys.stdout.flush()
             i += 1
             # Read file and biome info
-            rf = RegionFile(f)
+            rf = RegionFile(f, chunk_matcher=chunk_matcher)
             rf_chunks_infos = rf.get_chunks_infos()
             merge_coords_dict(chunks_infos, rf_chunks_infos)
-
-            # Merge inhabited time
-            rf_inhabited_time = rf.get_inhabited_datas()
-            merge_coords_dict(inhabited_time_datas, rf_inhabited_time)
-
-            # Merge biomes
-            rf_biomes = rf.get_biomes()
-            merge_coords_dict(biomes_datas, rf_biomes)
         sys.stdout.write("\n")
 
-        self.biomes_datas = biomes_datas
         bb = [min_x*32, (max_x+1)*32, min_z*32, (max_z+1)*32]
-        biomes, inhabited_time = dict_to_mpl_data(chunks_infos, bb,
-                                                  ["biome", "inhabited_time"])
+        biomes, inhabited_time, tagged = dict_to_mpl_data(chunks_infos, bb,
+                                                          ["biome",
+                                                           "inhabited_time",
+                                                           "chunk_tagged"])
+
+        biomes_datas = Biomes()
+        biome_color_mapping = biomes_datas.get_color_mapping()
+        (biomes_img,) = dict_to_mpl_img(chunks_infos, bb, ["biome"], biome_color_mapping)
         fig, ax = plt.subplots()
         ax.set(title="biomes datas")
-        biomes_datas = Biomes()
-        Mche.mpl_heatmap(fig, ax, biomes, bb, cmap=biomes_datas.get_cmap())
+        self.mche.mpl_image(fig, ax, biomes_img, bb)
 
         fig, ax = plt.subplots()
         ax.set(title="inhabited time")
-        time_range = get_image_range_clamped(inhabited_time, 99.9)
-        Mche.mpl_heatmap(fig, ax, inhabited_time, bb, color_range=time_range)
+        time_range = get_image_range_clamped(inhabited_time, 99)
+        norm = matplotlib.colors.LogNorm(vmin=time_range[0], vmax=time_range[1])
+        self.mche.mpl_heatmap(fig, ax, inhabited_time, bb, color_range=time_range, norm=None)
+
+        fig, ax = plt.subplots()
+        ax.set(title="chunk tagged")
+        self.mche.mpl_image(fig, ax, tagged, bb)
+        #self.mche.mpl_heatmap(fig, ax, tagged, bb)
+        #ax.imshow(tagged)
+        #plt.show()
 
 
 class Mche:
@@ -1036,7 +1176,7 @@ class Mche:
     def __init__(self, opts):
         """Initialize object with options parsed from command line"""
         self.__dict__ = opts
-        self.world = World(self.world_name)
+        self.world = World(self.world_name, self)
         self.del_zone_blk_coords = list()
     def run(self):
         """Execute requested operations based on options"""
@@ -1197,8 +1337,7 @@ class Mche:
                     (os.path.basename(dat_file), gp_offset))
             f.write("# vim: set syntax=gnuplot:\n")
 
-    @staticmethod
-    def mpl_heatmap(fig, ax, image, bb, color_range=None, cmap=None):
+    def mpl_heatmap(self, fig, ax, image, bb, color_range=None, cmap=None, norm=None):
         logging.info("Rendering heatmap")
         (min_x, max_x, min_z, max_z) = bb
         #ax.set_xlim(min_z, max_z)
@@ -1206,9 +1345,30 @@ class Mche:
 
         if color_range is not None:
             logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
-        im = ax.imshow(image, clim=color_range, extent=bb, cmap=cmap)
+        im = ax.imshow(image, clim=color_range, extent=bb, cmap=cmap, norm=norm)
         cbar = fig.colorbar(im)
-        plt.show()
+        if not self.no_mpl_display:
+            plt.show()
+        else:
+            filename = ax.get_title().replace(" ", "_") + ".png"
+            fig.savefig(filename)
+
+    def mpl_image(self, fig, ax, image, bb):
+        """Render RGB image"""
+        # Debug
+        dbg_fd = open(ax.get_title().replace(" ", "_") + ".dat", 'w')
+        for l in image:
+            for c in l:
+                dbg_fd.write("%r\n" % (c))
+
+        (min_x, max_x, min_z, max_z) = bb
+        im = ax.imshow(image, extent=bb)
+        if not self.no_mpl_display:
+            plt.show()
+        else:
+            filename = ax.get_title().replace(" ", "_") + ".png"
+            fig.savefig(filename)
+
 
     @staticmethod
     def get_bb(chunk_x, chunk_z):
@@ -1229,6 +1389,13 @@ class Biome(object):
         self.name = name
         self.biome_id = biome_id
         self.color = color
+
+    def get_rgb(self):
+        """Return rgb pixel value"""
+        r = int(self.color[1:3], 16)
+        g = int(self.color[3:5], 16)
+        b = int(self.color[5:7], 16)
+        return (r,g,b)
 
 class Biomes(object):
     def __init__(self):
@@ -1293,18 +1460,28 @@ class Biomes(object):
                        Biome(164, "Savanna Plateau M", "#CFC58C"),
                        Biome(165, "Mesa (Bryce)", "#FF6D3D"),
                        Biome(166, "Mesa Plateau F M", "#D8BF8D"),
-                       Biome(167, "Mesa Plateau M", "#F2B48D")]
+                       Biome(167, "Mesa Plateau M", "#F2B48D")
+                       ]
 
     def get_cmap(self):
-        max_id = max([b.biome_id for b in self.biomes])
-        colors = ["#000000"] * (max_id + 1)
-        for b in self.biomes:
-            colors[b.biome_id] = b.color
-        #colors = ['#F2B48D'] * len(colors)
-        (cmap, norm) = matplotlib.colors.from_levels_and_colors(range(-1, max_id +1),
-                                                                colors)
-        return cmap
+        biomes_ids = [b.biome_id for b in self.biomes]
+        biomes_colors = [b.color for b in self.biomes]
+        #biomes_colors.insert(0,"#000000")
+        #biomes_ids.append(-1)
+        for (c,i) in zip(biomes_colors, biomes_ids):
+            print("%d : %s" % (i, c))
+        print("len biomes_colors: %d" % len(biomes_colors))
+        (cmap, norm) = matplotlib.colors.from_levels_and_colors(biomes_ids,
+                                                                biomes_colors,
+                                                                extend='min')
+        return (cmap, norm)
 
+    def get_color_mapping(self):
+        """Return RGB mapping for each biome"""
+        ret = dict()
+        for b in self.biomes:
+            ret[b.biome_id] = b.get_rgb()
+        return ret
 
 
 def get_coords_from_str(s):
@@ -1445,6 +1622,8 @@ def main():
                         "modification")
     parser.add_argument("--biome-info", "-b", action="store_true", default=False,
                         help="Gather informations on biomes")
+    parser.add_argument("--no-mpl-display", action="store_true", default=False,
+                        help="Do not display matplotlib window, but save to png instead")
 
     args = parser.parse_args()
 
