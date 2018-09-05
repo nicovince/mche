@@ -23,6 +23,12 @@ def dict_to_mpl_data(data, bb, fields):
     bb: bounding box of data contained in dictionnary
     fields: list of field to extract in data
     """
+    fields_str = ""
+    for f in fields:
+        fields_str += "%s, " % f
+    fields_str = fields_str[0:-2]
+    print("Compute heatmap for %s" % fields_str)
+
     (min_x, max_x, min_z, max_z) = bb
     images = [list() for f in fields]
     row_width = max_z - min_z
@@ -48,6 +54,19 @@ def dict_to_mpl_data(data, bb, fields):
             im.append(row)
     return images
 
+def tag_mpl_img(image, chunks_infos, color, bb):
+    """Set pixels which are true in tags to color in image"""
+    print("tagging image")
+    (min_x, max_x, min_z, max_z) = bb
+    for x in chunks_infos:
+        for z in chunks_infos[x]:
+            if chunks_infos[x][z]["chunk_tagged"]:
+                x_i = x - min_x
+                z_i = z - min_z
+                image[x_i][z_i] = color
+    return image
+
+
 def dict_to_mpl_img(data, bb, fields, color_mapping):
     """Return data contained in dictionnary plotable by matplotlib as image
 
@@ -55,6 +74,12 @@ def dict_to_mpl_img(data, bb, fields, color_mapping):
     bb: bounding box of data contained in dictionnary
     fields: list of field to extract in data
     """
+    fields_str = ""
+    for f in fields:
+        fields_str += "%s, " % f
+    fields_str = fields_str[0:-2]
+    print("Compute rgb image for %s" % fields_str)
+
     dummy = [0,0,0]
     (min_x, max_x, min_z, max_z) = bb
     row_width = max_z - min_z
@@ -1126,7 +1151,7 @@ class World:
             datas[x] = dict(init_dict)
 
         # Chunk Matcher
-        chunk_matcher = ChunkMatcher([0], int(80*16*16/100), 5000)
+        chunk_matcher = ChunkMatcher([0, 10, 24, 16, 25, 26], int(80*16*16/100), 5000)
 
         # Fill dict with actual values
         chunks_infos = dict()
@@ -1144,10 +1169,8 @@ class World:
         sys.stdout.write("\n")
 
         bb = [min_x*32, (max_x+1)*32, min_z*32, (max_z+1)*32]
-        biomes, inhabited_time, tagged = dict_to_mpl_data(chunks_infos, bb,
-                                                          ["biome",
-                                                           "inhabited_time",
-                                                           "chunk_tagged"])
+        inhabited_time, tagged = dict_to_mpl_data(chunks_infos, bb,
+                                                  ["inhabited_time", "chunk_tagged"])
 
         biomes_datas = Biomes()
         biome_color_mapping = biomes_datas.get_color_mapping()
@@ -1162,12 +1185,15 @@ class World:
         norm = matplotlib.colors.LogNorm(vmin=time_range[0], vmax=time_range[1])
         self.mche.mpl_heatmap(fig, ax, inhabited_time, bb, color_range=time_range, norm=None)
 
+        # biome + tag
+        biomes_tagged = tag_mpl_img(biomes_img, chunks_infos, [0xFF, 0, 0], bb)
         fig, ax = plt.subplots()
-        ax.set(title="chunk tagged")
-        self.mche.mpl_image(fig, ax, tagged, bb)
-        #self.mche.mpl_heatmap(fig, ax, tagged, bb)
-        #ax.imshow(tagged)
-        #plt.show()
+        ax.set(title="biomes tagged")
+        self.mche.mpl_image(fig, ax, biomes_tagged, bb)
+
+        #fig, ax = plt.subplots()
+        #ax.set(title="chunk tagged")
+        #self.mche.mpl_image(fig, ax, tagged, bb)
 
 
 class Mche:
