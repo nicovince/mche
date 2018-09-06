@@ -1151,7 +1151,9 @@ class World:
             datas[x] = dict(init_dict)
 
         # Chunk Matcher
-        chunk_matcher = ChunkMatcher([0, 10, 24, 16, 25, 26], int(80*16*16/100), 5000)
+        chunk_matcher = ChunkMatcher(biomes_filt=[0, 10, 24, 16, 25, 26, 7, 11],
+                                     block_cnt_thresh=int(80*16*16/100),
+                                     inhabited_thresh=20000)
 
         # Fill dict with actual values
         chunks_infos = dict()
@@ -1175,11 +1177,13 @@ class World:
         biomes_datas = Biomes()
         biome_color_mapping = biomes_datas.get_color_mapping()
         (biomes_img,) = dict_to_mpl_img(chunks_infos, bb, ["biome"], biome_color_mapping)
-        fig, ax = plt.subplots()
+        fig, axes = plt.subplots(3,1, sharex=True, sharey=True)
+        ax = axes[0]
         ax.set(title="biomes datas")
         self.mche.mpl_image(fig, ax, biomes_img, bb)
 
-        fig, ax = plt.subplots()
+        #fig, ax = plt.subplots()
+        ax = axes[1]
         ax.set(title="inhabited time")
         time_range = get_image_range_clamped(inhabited_time, 99)
         norm = matplotlib.colors.LogNorm(vmin=time_range[0], vmax=time_range[1])
@@ -1187,9 +1191,11 @@ class World:
 
         # biome + tag
         biomes_tagged = tag_mpl_img(biomes_img, chunks_infos, [0xFF, 0, 0], bb)
-        fig, ax = plt.subplots()
+        #fig, ax = plt.subplots()
+        ax = axes[2]
         ax.set(title="biomes tagged")
         self.mche.mpl_image(fig, ax, biomes_tagged, bb)
+        plt.show()
 
         #fig, ax = plt.subplots()
         #ax.set(title="chunk tagged")
@@ -1372,12 +1378,7 @@ class Mche:
         if color_range is not None:
             logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
         im = ax.imshow(image, clim=color_range, extent=bb, cmap=cmap, norm=norm)
-        cbar = fig.colorbar(im)
-        if not self.no_mpl_display:
-            plt.show()
-        else:
-            filename = ax.get_title().replace(" ", "_") + ".png"
-            fig.savefig(filename)
+        cbar = fig.colorbar(im, ax=ax)
 
     def mpl_image(self, fig, ax, image, bb):
         """Render RGB image"""
@@ -1389,11 +1390,6 @@ class Mche:
 
         (min_x, max_x, min_z, max_z) = bb
         im = ax.imshow(image, extent=bb)
-        if not self.no_mpl_display:
-            plt.show()
-        else:
-            filename = ax.get_title().replace(" ", "_") + ".png"
-            fig.savefig(filename)
 
 
     @staticmethod
