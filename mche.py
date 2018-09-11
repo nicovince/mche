@@ -15,6 +15,7 @@ import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from ruamel import yaml
 
 def dict_to_mpl_data(data, bb, fields):
     """Return data contained in dictionnary plotable by matplotlib as heatmap
@@ -345,9 +346,8 @@ class ChunkMatcher(object):
         if self.bb is not None:
             [bb_x_min, bb_x_max, bb_z_min, bb_z_max] = self.bb
             if not(chunk.x >= bb_x_min and chunk.x <= bb_x_max
-                   and chunk.z >= bb_z_min and self.z <= bb_z_max):
+                   and chunk.z >= bb_z_min and chunk.z <= bb_z_max):
                 # chunk is outside of bounding box
-                print("outside of bounding box")
                 return False
 
         # Check inhabited time
@@ -376,13 +376,16 @@ class RegionFile:
 
     Load them, prune a chunk, save to file
     """
-    def __init__(self, filename, read=True, chunk_matcher=ChunkMatcher.default()):
+    def __init__(self, filename, read=True, chunk_matchers=None):
         """
         Initialize instance with region filename attribute
         """
+        if chunk_matchers is None:
+            self.chunk_matchers = [ChunkMatcher.default()]
+        else:
+            self.chunk_matchers = chunk_matchers
         self.region_filename = filename
         self.x, self.z = self.get_coords()
-        self.chunk_matcher = chunk_matcher
         self.has_gap = False
         self.chunks = None
         self.location_field = None
@@ -802,7 +805,15 @@ class RegionFile:
                 chunks_infos[c.x][c.z] = dict()
             chunks_infos[c.x][c.z]['inhabited_time'] = c.get_inhabited_time()
             chunks_infos[c.x][c.z]['biome'] = c.get_main_biome()
-            chunks_infos[c.x][c.z]['chunk_tagged'] = int(self.chunk_matcher.match(c))
+            chunk_match = False
+            for chunk_matcher in self.chunk_matchers:
+                # Process chunk filter if it did not already matched
+                if not chunk_match:
+                    chunk_match = chunk_matcher.match(c)
+
+            # Assign matching result
+            chunks_infos[c.x][c.z]['chunk_tagged'] = int(chunk_match)
+
         return chunks_infos
 
 
@@ -1138,7 +1149,7 @@ class World:
 
         Mche.create_heatmap(datas, dirname, dim)
 
-    def biome_info(self, dim):
+    def biome_info(self, dim, chunk_matchers):
         """Get biome informations from dimension and store in dirname"""
         # Initial column dictionary
         ranges = self.get_region_idx_range(dim)
@@ -1165,7 +1176,7 @@ class World:
             sys.stdout.flush()
             i += 1
             # Read file and biome info
-            rf = RegionFile(f, chunk_matcher=chunk_matcher)
+            rf = RegionFile(f, chunk_matchers=chunk_matchers)
             rf_chunks_infos = rf.get_chunks_infos()
             merge_coords_dict(chunks_infos, rf_chunks_infos)
         sys.stdout.write("\n")
@@ -1260,9 +1271,36 @@ class Mche:
             # gaps
             self.world.count_gaps(self.dimension)
 
+        chunks_filter = None
+        if self.chunks_filter is not None:
+            # Load yaml file
+            yaml_content = yaml.safe_load(open(self.chunks_filter))
+            chunks_filter_list = yaml_content["chunks_filter"]
+            chunks_filter = list()
+            # iterate over chunks filter
+            for cf in chunks_filter_list:
+                block_cnt = 16*16
+                if "block_cnt" in cf:
+                    block_cnt = cf["block_cnt"]
+                inhabited_thresh = None
+                if "inhabited_thresh" in cf:
+                    inhabited_thresh = cf["inhabited_thresh"]
+                bb = None
+                if "bb" in cf:
+                    bb = [cf["bb"]["xmin"], cf["bb"]["xmax"],
+                          cf["bb"]["zmin"], cf["bb"]["zmax"]]
+
+                # Add new filter to the list
+                print(bb)
+                chunks_filter.append(ChunkMatcher(biomes_filt=cf["biomes"],
+                                                  block_cnt_thresh=block_cnt,
+                                                  inhabited_thresh=inhabited_thresh,
+                                                  bb=bb))
+
         # Biomes infos
         if self.biome_info:
-            self.world.biome_info(self.dimension)
+            self.world.biome_info(self.dimension, chunks_filter)
+
 
     @staticmethod
     def order_zone(coords1, coords2):
@@ -1644,8 +1682,8 @@ def main():
                         "modification")
     parser.add_argument("--biome-info", "-b", action="store_true", default=False,
                         help="Gather informations on biomes")
-    parser.add_argument("--no-mpl-display", action="store_true", default=False,
-                        help="Do not display matplotlib window, but save to png instead")
+    parser.add_argument("--chunks-filter", action="store", type=str,
+                        help="Chunk filter file")
 
     args = parser.parse_args()
 

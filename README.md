@@ -50,7 +50,7 @@ You should probably run this option only when you want to archive your world : t
 ### Why would I want to get informations on the chunks ?
 - Because data is beautiful :)
 
-### Why do I have to install gnuplot to get this heatmap ?
+### Why do I have to install gnuplot/matplotlib to get this heatmap ?
 - Because I did not want to reinvent the wheel, gnuplot does the job.
 - If there is a lot of request, I may consider implementing a native way to generate the heatmap natively.
 
