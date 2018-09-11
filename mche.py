@@ -31,40 +31,43 @@ def dict_to_mpl_data(data, bb, fields):
     print("Compute heatmap for %s" % fields_str)
 
     (min_x, max_x, min_z, max_z) = bb
-    images = [list() for f in fields]
-    row_width = max_z - min_z
-    for x in range(min_x, max_x):
+    width = max_x - min_x
+    height = max_z - min_z
+    images = [np.arange(width*height).reshape(height, width) for f in fields]
+
+    z_i = 0
+    for z in range(min_z, max_z):
         rows = [list() for f in fields]
-        if x not in data.keys():
+        if z not in data.keys():
             # No data have been generated for this row, put dummy datas
             for r in rows:
-                r.extend([-1] * row_width)
+                r.extend([-1] * width)
         else:
-            for z in range(min_z, max_z):
+            for x in range(min_x, max_x):
                 heat_datas = [-1] * len(fields)
-                if z in data[x].keys():
+                if x in data[z].keys():
                     heat_datas = list()
                     for f in fields:
-                        heat_datas.append(data[x][z][f])
+                        heat_datas.append(data[z][x][f])
                 for r,hd in zip(rows, heat_datas):
                     r.append(hd)
-                #rows.append(heat_datas)
-        assert(len(rows[0]) == row_width), "len(rows):%d" % len(rows)
+        assert(len(rows[0]) == width), "len(rows):%d" % len(rows[0])
 
         for (im, row) in zip(images, rows):
-            im.append(row)
+            im[z_i] = row
+        z_i += 1
     return images
 
 def tag_mpl_img(image, chunks_infos, color, bb):
     """Set pixels which are true in tags to color in image"""
     print("tagging image")
     (min_x, max_x, min_z, max_z) = bb
-    for x in chunks_infos:
-        for z in chunks_infos[x]:
-            if chunks_infos[x][z]["chunk_tagged"]:
+    for z in chunks_infos:
+        for x in chunks_infos[z]:
+            if chunks_infos[z][x]["chunk_tagged"]:
                 x_i = x - min_x
                 z_i = z - min_z
-                image[x_i][z_i] = color
+                image[z_i][x_i] = color
     return image
 
 
@@ -83,26 +86,26 @@ def dict_to_mpl_img(data, bb, fields, color_mapping):
 
     dummy = [0,0,0]
     (min_x, max_x, min_z, max_z) = bb
-    row_width = max_z - min_z
-    height = max_x - min_x
-    images = [np.arange(row_width*height*len(dummy)).reshape(height, row_width, len(dummy)) for f in fields]
+    width = max_x - min_x
+    height = max_z - min_z
+    images = [np.arange(width*height*len(dummy)).reshape(height, width, len(dummy)) for f in fields]
     
-    x_i = 0
-    for x in range(min_x, max_x):
+    z_i = 0
+    for z in range(min_z, max_z):
         rows = [list() for f in fields]
-        if x not in data.keys():
+        if z not in data.keys():
             # No data have been generated for this row, put dummy datas
             for r in rows:
-                r.extend([dummy] * row_width)
+                r.extend([dummy] * width)
         else:
-            for z in range(min_z, max_z):
+            for x in range(min_x, max_x):
                 pixel_datas = [dummy] * len(fields)
-                if z in data[x].keys():
+                if x in data[z].keys():
                     # list of pixel for each field
                     pixel_datas = list()
                     for f in fields:
                         # Get pixel value from color mapping
-                        pix_data = data[x][z][f]
+                        pix_data = data[z][x][f]
                         if pix_data in color_mapping:
                             pixel_datas.append(color_mapping[pix_data])
                         else:
@@ -110,13 +113,12 @@ def dict_to_mpl_img(data, bb, fields, color_mapping):
                 # Adds pixels to each row of each image
                 for r,hd in zip(rows, pixel_datas):
                     r.append(hd)
-        assert(len(rows[0]) == row_width), "len(rows):%d" % len(rows[0])
+        assert(len(rows[0]) == width), "len(rows):%d" % len(rows[0])
 
         # adds row to each image
         for (im, row) in zip(images, rows):
-            #im.append(row)
-            im[x_i] = row
-        x_i += 1
+            im[z_i] = row
+        z_i += 1
     return images
 
 
@@ -138,10 +140,10 @@ def get_image_range_clamped(image, clamp_percent):
 
 def merge_coords_dict(coords_inout, coords_in):
     """Merge dict of coordinates to inout"""
-    for (x, item_dict) in coords_in.items():
-        if x not in coords_inout:
-            coords_inout[x] = dict()
-        coords_inout[x].update(item_dict)
+    for (z, item_dict) in coords_in.items():
+        if z not in coords_inout:
+            coords_inout[z] = dict()
+        coords_inout[z].update(item_dict)
 
 
 def get_byte_seq(data, n):
@@ -799,12 +801,12 @@ class RegionFile:
         # Iterate over chunks
         for c in self.chunks:
             c.parse_chunk_datas()
-            if c.x not in chunks_infos:
-                chunks_infos[c.x] = dict()
-            if c.z not in chunks_infos[c.x]:
-                chunks_infos[c.x][c.z] = dict()
-            chunks_infos[c.x][c.z]['inhabited_time'] = c.get_inhabited_time()
-            chunks_infos[c.x][c.z]['biome'] = c.get_main_biome()
+            if c.z not in chunks_infos:
+                chunks_infos[c.z] = dict()
+            if c.x not in chunks_infos[c.z]:
+                chunks_infos[c.z][c.x] = dict()
+            chunks_infos[c.z][c.x]['inhabited_time'] = c.get_inhabited_time()
+            chunks_infos[c.z][c.x]['biome'] = c.get_main_biome()
             chunk_match = False
             for chunk_matcher in self.chunk_matchers:
                 # Process chunk filter if it did not already matched
@@ -812,7 +814,7 @@ class RegionFile:
                     chunk_match = chunk_matcher.match(c)
 
             # Assign matching result
-            chunks_infos[c.x][c.z]['chunk_tagged'] = int(chunk_match)
+            chunks_infos[c.z][c.x]['chunk_tagged'] = int(chunk_match)
 
         return chunks_infos
 
@@ -1156,11 +1158,6 @@ class World:
         ((min_x, max_x), (min_z, max_z)) = ranges
         init_dict = {key: 0 for key in range(32*min_z, 32*(max_z+1))}
 
-        # Initialize full dict
-        datas = dict()
-        for x in range(32*min_x, 32*(max_x+1)):
-            datas[x] = dict(init_dict)
-
         # Chunk Matcher
         chunk_matcher = ChunkMatcher(biomes_filt=[0, 10, 24, 16, 25, 26, 7, 11],
                                      block_cnt_thresh=int(80*16*16/100),
@@ -1188,12 +1185,12 @@ class World:
         biomes_datas = Biomes()
         biome_color_mapping = biomes_datas.get_color_mapping()
         (biomes_img,) = dict_to_mpl_img(chunks_infos, bb, ["biome"], biome_color_mapping)
+
         fig, axes = plt.subplots(3,1, sharex=True, sharey=True)
         ax = axes[0]
         ax.set(title="biomes datas")
         self.mche.mpl_image(fig, ax, biomes_img, bb)
 
-        #fig, ax = plt.subplots()
         ax = axes[1]
         ax.set(title="inhabited time")
         time_range = get_image_range_clamped(inhabited_time, 99)
@@ -1410,12 +1407,11 @@ class Mche:
     def mpl_heatmap(self, fig, ax, image, bb, color_range=None, cmap=None, norm=None):
         logging.info("Rendering heatmap")
         (min_x, max_x, min_z, max_z) = bb
-        #ax.set_xlim(min_z, max_z)
-        #ax.set_ylim(min_x, max_x)
 
         if color_range is not None:
             logging.info("Use color range : [%d: %d]" % (color_range[0], color_range[1]))
-        im = ax.imshow(image, clim=color_range, extent=bb, cmap=cmap, norm=norm)
+        extent = [bb[0], bb[1], bb[3], bb[2]]
+        im = ax.imshow(image, clim=color_range, extent=extent, cmap=cmap, norm=norm)
         cbar = fig.colorbar(im, ax=ax)
 
     def mpl_image(self, fig, ax, image, bb):
@@ -1427,7 +1423,8 @@ class Mche:
                 dbg_fd.write("%r\n" % (c))
 
         (min_x, max_x, min_z, max_z) = bb
-        im = ax.imshow(image, extent=bb)
+        extent = [bb[0], bb[1], bb[3], bb[2]]
+        im = ax.imshow(image, extent=extent)
 
 
     @staticmethod
