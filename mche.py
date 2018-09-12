@@ -795,9 +795,11 @@ class RegionFile:
                                               self.region_filename))
         Mche.create_heatmap(timestamp_datas, dirname, file_prefix)
 
-    def get_chunks_infos(self):
+    def get_chunks_infos(self, prune_matched=False):
         """Get infos of each chunk in region file"""
         chunks_infos = dict()
+        rf_updated = False
+
         # Iterate over chunks
         for c in self.chunks:
             c.parse_chunk_datas()
@@ -815,6 +817,13 @@ class RegionFile:
 
             # Assign matching result
             chunks_infos[c.z][c.x]['chunk_tagged'] = int(chunk_match)
+            if prune_matched and chunks_infos[c.z][c.x]['chunk_tagged'] == True:
+                self.delete_chunk(c.x, c.z)
+                rf_updated = True
+
+        # Write region if it was updated
+        if prune_matched and rf_updated:
+            self.write(self.region_filename)
 
         return chunks_infos
 
@@ -1151,7 +1160,7 @@ class World:
 
         Mche.create_heatmap(datas, dirname, dim)
 
-    def biome_info(self, dim, chunk_matchers):
+    def biome_info(self, dim, chunk_matchers, prune_matched=False):
         """Get biome informations from dimension and store in dirname"""
         # Initial column dictionary
         ranges = self.get_region_idx_range(dim)
@@ -1174,7 +1183,7 @@ class World:
             i += 1
             # Read file and biome info
             rf = RegionFile(f, chunk_matchers=chunk_matchers)
-            rf_chunks_infos = rf.get_chunks_infos()
+            rf_chunks_infos = rf.get_chunks_infos(prune_matched)
             merge_coords_dict(chunks_infos, rf_chunks_infos)
         sys.stdout.write("\n")
 
@@ -1218,6 +1227,7 @@ class Mche:
         self.__dict__ = opts
         self.world = World(self.world_name, self)
         self.del_zone_blk_coords = list()
+
     def run(self):
         """Execute requested operations based on options"""
         # Adds chunks of end cities to zones marked for deletion if processed
@@ -1296,7 +1306,7 @@ class Mche:
 
         # Biomes infos
         if self.biome_info:
-            self.world.biome_info(self.dimension, chunks_filter)
+            self.world.biome_info(self.dimension, chunks_filter, self.prune_matched)
 
 
     @staticmethod
@@ -1681,6 +1691,8 @@ def main():
                         help="Gather informations on biomes")
     parser.add_argument("--chunks-filter", action="store", type=str,
                         help="Chunk filter file")
+    parser.add_argument("--prune-matched", action="store_true", default=False,
+                        help="Delete matching chunks defined in chunks-filter option")
 
     args = parser.parse_args()
 
